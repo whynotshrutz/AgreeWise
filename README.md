@@ -1,4 +1,4 @@
-# 🧠 AgreeWise — Chrome AI Extension using Gemini Nano
+# 🦉 AgreeWise — Chrome AI Extension using Gemini Nano
 
 **AgreeWise** helps users understand what they’re actually signing up for.  
 It automatically analyzes Terms & Conditions (T&C) or Privacy Policies using **on-device AI**, summarizing risks, rights, and key points — without sending any data to servers.
