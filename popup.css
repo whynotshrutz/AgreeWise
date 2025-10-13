@@ -1,0 +1,50 @@
+:root{
+  --bg:#fff; --fg:#0f172a; --border:#e5e7eb; --card:#fff; --accent:#2563eb;
+  --btn-bg:#f8fafc; --btn-border:#d1d5db;
+  --btn-shadow:0 6px 0 #cbd5e1, 0 10px 24px rgba(0,0,0,.08);
+  --btn-shadow-active:0 2px 0 #cbd5e1, 0 6px 16px rgba(0,0,0,.12);
+}
+html,body{margin:0;padding:0}
+body{
+  width:320px; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--bg); color:var(--fg);
+  transition:background-color 200ms ease,color 200ms ease,border-color 200ms ease,box-shadow 200ms ease;
+}
+body[data-theme="dark"]{
+  --bg:#0e1117; --fg:#e5e7eb; --border:#1f2937; --card:#161b22; --accent:#10b981;
+  --btn-bg:#0f172a; --btn-border:#1f2937;
+  --btn-shadow:0 8px 0 #0b1220, 0 18px 28px rgba(0,0,0,.55);
+  --btn-shadow-active:0 3px 0 #0b1220, 0 10px 20px rgba(0,0,0,.5);
+}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--card)}
+h3{margin:0;font-size:15px}
+#wrap{padding:12px 14px 16px;background:var(--bg)}
+#themeToggle{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--btn-bg);color:var(--fg);cursor:pointer;transition:background-color 200ms ease,color 200ms ease,border-color 200ms ease}
+#themeToggle .sun{display:none}
+#themeToggle .moon{display:inline}
+body:not([data-theme="dark"]) #themeToggle .sun{display:inline}
+body:not([data-theme="dark"]) #themeToggle .moon{display:none}
+#themeToggle:hover{background:var(--accent);color:#fff}
+
+.btn-3d{
+  --mx:50%; --my:50%; --glow: rgba(0,0,0,0);
+  width:100%; box-sizing:border-box; padding:12px 14px; border-radius:12px;
+  border:1px solid var(--btn-border); background:var(--btn-bg); color:var(--fg); font-weight:600; cursor:pointer;
+  background-image:
+    linear-gradient(to bottom, rgba(255,255,255,.06), rgba(0,0,0,.06)),
+    radial-gradient(140px 140px at var(--mx) var(--my), var(--glow), transparent 60%);
+  box-shadow:var(--btn-shadow); transform:translateY(0);
+  transition:box-shadow 180ms ease, transform 80ms ease, background-color 200ms ease, background-image 200ms ease, color 200ms ease, border-color 200ms ease
+}
+body:not([data-theme="dark"]) .btn-3d:hover{ --glow: rgba(0,128,255,.35) }
+body[data-theme="dark"] .btn-3d:hover{ --glow: rgba(0,255,200,.45) }
+.btn-3d:hover{ box-shadow:0 10px 0 rgba(0,0,0,.06), 0 18px 28px rgba(0,0,0,.18), 0 0 0 1px var(--btn-border), 0 0 24px rgba(0,128,255,.24) }
+.btn-3d:active{ transform:translateY(4px); box-shadow:var(--btn-shadow-active), 0 0 18px rgba(0,128,255,.2) }
+.btn-3d:hover, .btn-3d:active{ color:var(--fg) }
+
+.hint{color:#64748b;margin:10px 2px 0 2px;font-size:12px}
+*{transition:background-color 200ms ease, color 200ms ease, border-color 200ms ease}
+
+@media (prefers-color-scheme: dark){
+  body:not([data-theme]){background:#0e1117; color:#e5e7eb}
+}
