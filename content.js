@@ -228,7 +228,7 @@ async function extractTermsTextFromPage(){
 /* =============================
    AI HELPERS
 ============================= */
-function chunk(text, size=8000){ const out=[]; for(let i=0;i<text.length;i+=size) out.push(text.slice(i,i+size)); return out; }
+function chunk(text, size=4000){ const out=[]; for(let i=0;i<text.length;i+=size) out.push(text.slice(i,i+size)); return out; }
 
 async function summarizeChunks(chunks, mode='key-points'){
   if ('Summarizer' in self && typeof Summarizer.availability==='function'){
