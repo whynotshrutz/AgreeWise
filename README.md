@@ -64,4 +64,3 @@ chrome://extensions/
 ## 🧱 Built With
 - Chrome’s Built-in AI APIs (Summarizer, Prompt, Translator, TTS)
 - Vanilla JavaScript, Tailwind-style CSS
-- PDF.js for local PDF parsing
