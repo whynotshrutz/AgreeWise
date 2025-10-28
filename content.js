@@ -251,13 +251,33 @@ async function extractTermsTextFromPage(){
 ============================= */
 function chunk(text, size=4000){ const out=[]; for(let i=0;i<text.length;i+=size) out.push(text.slice(i,i+size)); return out; }
 
+// Simple heuristic categorization from chunks
+function analyzeCategory(chunks){
+  console.log('Analyzing category...');
+  try{
+    const txt = (chunks||[]).join('\n').toLowerCase();
+    const score = (words)=> words.reduce((s,w)=> s + (txt.includes(w)?1:0), 0);
+    const categories = [
+      [1, ['follow','like','share','friends','timeline','profile','post','story','dm','social media','community']],
+      [2, ['payment','payout','billing','invoice','subscription','card','credit card','debit','refund','chargeback','wallet']],
+      [3, ['cart','checkout','order','shipment','seller','buyer','merchant','marketplace','product','sku','fulfillment','return policy']],
+      [4, ['job','career','resume','cv','applicant','recruiter','application','hiring','interview','employer','candidate']]
+    ];
+    let best = [0, 0];
+    for (const [id, words] of categories){ const sc = score(words); if (sc > best[1]) best = [id, sc]; }
+    return best[1] > 0 ? best[0] : 0;
+  }catch{ return 0; }
+}
+
 async function summarizeChunks(chunks, mode='key-points'){
   if ('Summarizer' in self && typeof Summarizer.availability==='function'){
     try{
       const a = await Summarizer.availability();
       if (a && a!=='unavailable'){
         const summarizer = await Summarizer.create({ type: mode==='key-points'?'key-points':'default', format:'markdown', length:'medium' });
-        const parts=[]; for (const c of chunks){ parts.push(await summarizer.summarize(c)); if (parts.length>=6) break; } return parts.join('\n');
+        const parts=[]; for (const c of chunks){ parts.push(await summarizer.summarize(c)); if (parts.length>=6) break; }
+        const category = await analyzeCategory(chunks);
+        return { text: parts.join('\n'), category };
       }
     }catch(e){ console.warn('Summarizer failed; using Prompt API', e); }
   }
@@ -268,7 +288,8 @@ async function summarizeChunks(chunks, mode='key-points'){
     ? `Summarize as concise markdown bullet points (max 6 bullets). Be factual and neutral.\n\n${c}`
     : `Write a short plain-English summary focusing on user rights, obligations, and data practices.\n\n${c}`;
     out.push(await session.prompt(prompt)); if (out.length>=6) break; }
-  return out.join('\n');
+  const category = await analyzeCategory(chunks);
+  return { text: out.join('\n'), category };
 }
 
 async function extractRisks(fullText){
@@ -284,6 +305,7 @@ async function extractRisks(fullText){
     },
     required:["collectsPersonalData","sharesWithThirdParties","tracksForAds","arbitrationOrClassActionWaiver","autoRenewalOrSubscription"]
   };
+  // #FIX ME - 4000 is not enough
   const prompt = `You are a compliance summarizer. Extract fields tersely from the Terms below.
 - collectsPersonalData (true/false)
 - sharesWithThirdParties (true/false)
@@ -298,7 +320,7 @@ async function extractRisks(fullText){
 If unknown, set booleans=false and strings="".
 
 TERMS:
-${fullText.slice(0,40000)}`;
+${fullText.slice(0,4000)}`; 
   const raw = await session.prompt(prompt, { responseConstraint: schema });
   const parsed = JSON.parse(raw);
   let score=100;
@@ -459,7 +481,7 @@ async function summarizeLinks(links){
     const txt = await fetchLinkText(href);
     if (!txt || txt.length<200) continue;
     const sum = await summarizeChunks(chunk(txt), 'key-points');
-    out.push({href, summary:sum});
+    out.push({href, summary: (sum && sum.text) ? sum.text : sum});
     if (out.length>=5) break;
   } return out;
 }
@@ -636,9 +658,11 @@ async function analyzeSelection(status, riskEl, sumEl, linksEl, panel){
 
   status.textContent = tr('summarizing_section', lang);
   const sectionSummary = await summarizeChunks(chunk(text), 'key-points');
-
+  console.log(sectionSummary.category)
+  let out = (sectionSummary && sectionSummary.text) ? sectionSummary.text : sectionSummary; // just the summary text
+  console.log('Section summary:', out);
   status.textContent = tr('extracting_risks', lang);
-  const parsed = await extractRisks(text);
+  const parsed = await extractRisks(out);
   __agreewise_lastParsed = parsed;
 
   await renderRiskBlock(
@@ -649,7 +673,7 @@ async function analyzeSelection(status, riskEl, sumEl, linksEl, panel){
     (targetLang!=='en'?targetLang:null),
     status
   );
-let out = sectionSummary; // just the summary text
+
 
   __agreewise_lastSummaryRaw = out;
 
@@ -661,15 +685,15 @@ let out = sectionSummary; // just the summary text
     status
   );
 
-  if (links && links.length){
-    status.textContent = tr('following_links', lang);
-    const linkSums = await summarizeLinks(links);
-    __agreewise_lastLinkSums = linkSums;
-    await renderLinkSummaries(linksEl, linkSums, lang, (targetLang!=='en'?targetLang:null), status);
-  } else {
-    __agreewise_lastLinkSums = null;
-    linksEl.innerHTML = '';
-  }
+  // if (links && links.length){
+  //   status.textContent = tr('following_links', lang);
+  //   const linkSums = await summarizeLinks(links);
+  //   __agreewise_lastLinkSums = linkSums;
+  //   await renderLinkSummaries(linksEl, linkSums, lang, (targetLang!=='en'?targetLang:null), status);
+  // } else {
+  //   __agreewise_lastLinkSums = null;
+  //   linksEl.innerHTML = '';
+  // }
 
   status.textContent = tr('done', lang);
 }
@@ -684,9 +708,10 @@ async function analyzePage(status, riskEl, sumEl, panel){
 
   status.textContent = tr('summarizing_section', lang);
   const parts = await summarizeChunks(chunk(text), 'key-points');
-
+  console.log(parts.category)
+  let out = (parts && parts.text) ? parts.text : parts; // just the summary text
   status.textContent = tr('extracting_risks', lang);
-  const parsed = await extractRisks(text);
+  const parsed = await extractRisks(out);
   __agreewise_lastParsed = parsed;
 
   await renderRiskBlock(
@@ -698,7 +723,7 @@ async function analyzePage(status, riskEl, sumEl, panel){
     status
   );
 
-  let out = parts; // just the summary text
+  
   __agreewise_lastSummaryRaw = out;
 
   await renderSummary(
