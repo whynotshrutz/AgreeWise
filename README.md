@@ -18,9 +18,20 @@ When you click **Analyze**:
   - Arbitration or auto-renewal clauses  
 - Optionally uses the **Translator API** to translate the full analysis.  
 - If the text contains PDFs or links, it follows and analyzes those as well.  
+- Displays a collapsible **Summary** section with play/pause audio (TTS) support.  
+- The interface automatically localizes button labels and headings (Show/Hide Summary) in the user’s chosen language.  
 
 All processing happens **entirely on-device** — no cloud calls, no API keys, and no privacy leaks.
 
+## ✨ Features
+
+- 🧠 On-device AI (Gemini Nano) — private and fast  
+- 📄 Summarizes T&C or Privacy Policies into plain-language bullet points  
+- ⚖️ Highlights key risk factors (data collection, ads, arbitration, etc.)  
+- 🌐 Multilingual translation with auto-localized UI text  
+- 🔊 Read-aloud option with play/pause and auto-stop  
+- 📎 Follows PDF or external links for deeper analysis  
+- 🕶️ Auto-detects system theme (light/dark)
 
 ## Here are the instruction to get started with Gemini Nano using chrome
 Make sure to have atleast 20 GB space in your local PC
@@ -47,3 +58,10 @@ chrome://extensions/
 4. Click Load unpacked → select your AgreeWise/ folder.
 
 5. The AgreeWise icon will now appear in your Chrome toolbar.
+
+6. Click the AgreeWise icon on any Terms or Privacy page and press **Analyze** to generate a localized, collapsible summary with optional text-to-speech.
+
+## 🧱 Built With
+- Chrome’s Built-in AI APIs (Summarizer, Prompt, Translator, TTS)
+- Vanilla JavaScript, Tailwind-style CSS
+- PDF.js for local PDF parsing

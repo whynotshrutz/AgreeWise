@@ -26,6 +26,24 @@ const UI_STRINGS = {
   page_score: { en:"Safety score:", hi:"सुरक्षा स्कोर:", es:"Puntuación de seguridad:", fr:"Score de sécurité :", de:"Sicherheitswert:", it:"Punteggio di sicurezza:", "pt-BR":"Pontuação de segurança:", "pt-PT":"Pontuação de segurança:", ja:"安全スコア：", ko:"안전 점수:", "zh-CN":"安全分：", "zh-TW":"安全分：", ar:"درجة الأمان:", ru:"Оценка безопасности:", bn:"সুরক্ষা স্কোর:", ta:"பாதுகாப்பு மதிப்பெண்:", te:"భద్రతా స్కోరు:", mr:"सुरक्षा गुण:", gu:"સુરક્ષા સ્કોર:" },
   selected_heading: { en:"Selected section — what it says", hi:"चयनित अनुभाग — इसका सार", es:"Sección seleccionada — lo que dice", fr:"Section sélectionnée — ce qu’elle dit", de:"Ausgewählter Abschnitt — Inhalt", it:"Sezione selezionata — contenuto", "pt-BR":"Seção selecionada — conteúdo", "pt-PT":"Secção selecionada — conteúdo", ja:"選択セクション — 要旨", ko:"선택된 섹션 — 요약", "zh-CN":"所选段落—要点", "zh-TW":"所選段落—要點", ar:"القسم المحدد — ما يرد فيه", ru:"Выбранный раздел — содержание", bn:"নির্বাচিত অংশ — সারাংশ", ta:"தேர்ந்தெடுக்கப்பட்ட பகுதி — சாரம்", te:"ఎంచుకున్న విభాగం — సారం", mr:"निवडलेला विभाग — सार", gu:"પસંદ કરેલ વિભાગ — સાર" },
   page_heading: { en:"What you're agreeing to", hi:"आप किससे सहमत हो रहे हैं", es:"A qué aceptas", fr:"À quoi vous consentez", de:"Wozu Sie zustimmen", it:"A cosa acconsenti", "pt-BR":"Ao que você concorda", "pt-PT":"Ao que concorda", ja:"同意内容", ko:"동의하는 내용", "zh-CN":"你同意的内容", "zh-TW":"你同意的內容", ar:"على ماذا توافق", ru:"С чем вы соглашаетесь", bn:"আপনি কীতে সম্মত হচ্ছেন", ta:"நீங்கள் ஒப்புக்கொள்பவை", te:"మీరు ఏదికి అంగీకరిస్తున్నారు", mr:"आपण कशास सहमती देता आहात", gu:"તમે શું સ્વીકારી રહ્યા છો" },
+  summary_heading: { 
+    en:"Summary", hi:"सारांश", es:"Resumen", fr:"Résumé", de:"Zusammenfassung",
+    it:"Riepilogo", "pt-BR":"Resumo", "pt-PT":"Resumo", ja:"要約", ko:"요약",
+    "zh-CN":"摘要", "zh-TW":"摘要", ar:"الملخّص", ru:"Краткое содержание",
+    bn:"সারাংশ", ta:"சுருக்கம்", te:"సారాంశం", mr:"सारांश", gu:"સારાંશ"
+  },
+  show_summary: {
+    en:"Show summary", hi:"सारांश दिखाएँ", es:"Mostrar resumen", fr:"Afficher le résumé", de:"Zusammenfassung anzeigen",
+    it:"Mostra riepilogo", "pt-BR":"Mostrar resumo", "pt-PT":"Mostrar resumo", ja:"要約を表示", ko:"요약 보기",
+    "zh-CN":"显示摘要", "zh-TW":"顯示摘要", ar:"إظهار الملخّص", ru:"Показать краткое", 
+    bn:"সারাংশ দেখাও", ta:"சுருக்கத்தை காட்டு", te:"సారాంశం చూపు", mr:"सारांश दाखवा", gu:"સારાંશ બતાવો"
+  },
+  hide_summary: {
+    en:"Hide summary", hi:"सारांश छिपाएँ", es:"Ocultar resumen", fr:"Masquer le résumé", de:"Zusammenfassung ausblenden",
+    it:"Nascondi riepilogo", "pt-BR":"Ocultar resumo", "pt-PT":"Ocultar resumo", ja:"要約を隠す", ko:"요약 숨기기",
+    "zh-CN":"隐藏摘要", "zh-TW":"隱藏摘要", ar:"إخفاء الملخّص", ru:"Скрыть краткое", 
+    bn:"সারাংশ লুকাও", ta:"சுருக்கத்தை மறை", te:"సారాంశం దాచు", mr:"सारांश लपवा", gu:"સારાંશ છુપાવો"
+  },
 
   // risk flags
   collects: { en:"Personal data collected", hi:"व्यक्तिगत डेटा एकत्रित", es:"Datos personales recopilados", fr:"Données personnelles collectées", de:"Personenbezogene Daten erfasst", it:"Dati personali raccolti", "pt-BR":"Dados pessoais coletados", "pt-PT":"Dados pessoais recolhidos", ja:"個人データ収集", ko:"개인 데이터 수집", "zh-CN":"收集个人数据", "zh-TW":"蒐集個人資料", ar:"جمع البيانات الشخصية", ru:"Сбор персональных данных", bn:"ব্যক্তিগত ডেটা সংগ্রহ", ta:"தனிப்பட்ட தரவு சேகரிப்பு", te:"వ్యక్తిగత డేటా సేకరణ", mr:"वैयक्तिक डेटा संकलन", gu:"વ્યક્તિગત ડેટા એકત્રિત" },
@@ -104,56 +122,59 @@ async function ensurePanel(){
       <div id="agree-smart-links"></div>
     </div>`;
   document.documentElement.appendChild(el);
-  el.querySelector('#agree-smart-close').onclick = () => el.remove();
 
-  const theme = await getTheme(); setPanelTheme(el, theme);
+// Close: stop speech and remove
+const closeBtn = el.querySelector('#agree-smart-close');
+closeBtn.onclick = () => { ttsCancel(); el.remove(); };
 
-  // On language change: re-render from stored English
-  el.querySelector('#agree-smart-translate').addEventListener('change', async ()=>{
-    const lang2   = currentLang(el);
-    const status  = el.querySelector('#agree-smart-status');
-    const riskEl  = el.querySelector('#agree-smart-risk');
-    const sumEl   = el.querySelector('#agree-smart-summary');
-    const linksEl = el.querySelector('#agree-smart-links');
+const theme = await getTheme(); setPanelTheme(el, theme);
 
-    const tgt = el.querySelector('#agree-smart-translate').value || 'en';
+// On language change: stop TTS and re-render with buttons alive
+el.querySelector('#agree-smart-translate').addEventListener('change', async ()=>{
+  ttsCancel();
 
-    // Summary
-    if (__agreewise_lastSummaryRaw){
-      if (tgt === 'en'){
-        sumEl.innerHTML = `<div style="margin-top:8px">${__agreewise_lastSummaryRaw.replace(/\n/g,'<br/>')}</div>`;
-      } else {
-        status.textContent = tr('translating', lang2);
-        const rendered = await maybeTranslate(__agreewise_lastSummaryRaw, tgt, status, lang2);
-        sumEl.innerHTML = `<div style="margin-top:8px">${rendered.replace(/\n/g,'<br/>')}</div>`;
-      }
-    }
+  const lang2   = currentLang(el);
+  const status  = el.querySelector('#agree-smart-status');
+  const riskEl  = el.querySelector('#agree-smart-risk');
+  const sumEl   = el.querySelector('#agree-smart-summary');
+  const linksEl = el.querySelector('#agree-smart-links');
+  const tgt     = el.querySelector('#agree-smart-translate').value || 'en';
 
-    // Risk block
-    if (__agreewise_lastParsed){
-      await renderRiskBlock(
-        riskEl,
-        __agreewise_lastParsed,
-        __agreewise_lastParsed.__score,
-        lang2,
-        (tgt !== 'en' ? tgt : null),
-        status
-      );
-    }
+  if (__agreewise_lastSummaryRaw){
+    await renderSummary(
+      sumEl,
+      __agreewise_lastSummaryRaw,
+      (tgt !== 'en') ? tgt : null,
+      lang2,
+      status
+    );
+  }
 
-    // Linked page summaries
-    if (__agreewise_lastLinkSums){
-      await renderLinkSummaries(
-        linksEl,
-        __agreewise_lastLinkSums,
-        lang2,
-        (tgt !== 'en' ? tgt : null),
-        status
-      );
-    }
+  if (__agreewise_lastParsed){
+    await renderRiskBlock(
+      riskEl,
+      __agreewise_lastParsed,
+      __agreewise_lastParsed.__score,
+      lang2,
+      (tgt !== 'en' ? tgt : null),
+      status
+    );
+  }
 
-    status.textContent = tr('done', lang2);
-  });
+  if (__agreewise_lastLinkSums){
+    await renderLinkSummaries(
+      linksEl,
+      __agreewise_lastLinkSums,
+      lang2,
+      (tgt !== 'en' ? tgt : null),
+      status
+    );
+  } else {
+    linksEl.innerHTML = '';
+  }
+
+  status.textContent = tr('done', lang2);
+});
 
   return el;
 }
@@ -348,6 +369,73 @@ async function translateArray(arr, targetLang, statusEl, langForStatus='en'){
 }
 
 /* =============================
+   TTS (queue + pause/resume + cancel)
+============================= */
+const LANG_TAGS = {
+  "en":"en-US","hi":"hi-IN","es":"es-ES","fr":"fr-FR","de":"de-DE","it":"it-IT",
+  "pt-BR":"pt-BR","pt-PT":"pt-PT","ja":"ja-JP","ko":"ko-KR","zh-CN":"zh-CN",
+  "zh-TW":"zh-TW","ar":"ar-SA","ru":"ru-RU","bn":"bn-IN","ta":"ta-IN","te":"te-IN",
+  "mr":"mr-IN","gu":"gu-IN"
+};
+
+let __ttsQueue = [];
+let __ttsSpeaking = false;
+let __ttsPaused = false;
+
+function ttsCancel(){
+  try { window.speechSynthesis?.cancel(); } catch {}
+  __ttsQueue = [];
+  __ttsSpeaking = false;
+  __ttsPaused = false;
+}
+
+function ttsEnqueue(text, langTag='en-US', rate=1.0, pitch=1.0){
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = langTag;
+  u.rate = rate;
+  u.pitch = pitch;
+  u.onend = ()=> {
+    __ttsSpeaking = false;
+    __ttsPaused = false;
+    if (__ttsQueue.length) ttsPlayQueue();
+  };
+  u.onerror = ()=> { __ttsSpeaking = false; __ttsPaused = false; };
+  __ttsQueue.push(u);
+}
+
+function ttsPlayQueue(){
+  if (!__ttsQueue.length || __ttsSpeaking) return;
+  const next = __ttsQueue.shift();
+  __ttsSpeaking = true;
+  __ttsPaused = false;
+  window.speechSynthesis.speak(next);
+}
+
+function ttsPause(){
+  if (!__ttsSpeaking || __ttsPaused) return;
+  window.speechSynthesis.pause();
+  __ttsPaused = true;
+}
+
+function ttsResume(){
+  if (!__ttsSpeaking || !__ttsPaused) return;
+  window.speechSynthesis.resume();
+  __ttsPaused = false;
+}
+
+function ensureVoicesLoaded(){
+  return new Promise((resolve)=>{
+    const v = window.speechSynthesis?.getVoices() || [];
+    if (v.length) return resolve(v);
+    const on = ()=>{ resolve(window.speechSynthesis.getVoices()||[]); };
+    window.speechSynthesis?.addEventListener('voiceschanged', on, {once:true});
+    // Fallback ping
+    setTimeout(on, 500);
+  });
+}
+
+
+/* =============================
    LINK FETCHERS
 ============================= */
 async function fetchLinkText(url){
@@ -380,6 +468,93 @@ async function summarizeLinks(links){
    RENDER HELPERS
 ============================= */
 function dot(ok){ return ok?'<span class="ok">●</span>':'<span class="bad">●</span>'; }
+
+// Collapsible summary
+async function renderSummary(sumEl, bulletsText, targetLangOrNull, uiLang, statusEl){
+  if (!sumEl) return;
+
+  sumEl.dataset.raw = bulletsText || '';
+  sumEl.dataset.tgt = targetLangOrNull || '';
+
+  sumEl.innerHTML = `
+    <div id="aw-sum-collapsible" class="aw-sum">
+      <div class="aw-sum-bar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px">
+       <strong style="font-size:13px">${tr('summary_heading', uiLang)}</strong>
+        <div class="aw-sum-actions" style="display:flex;align-items:center;gap:8px">
+          <button id="aw-sum-show" type="button">${tr('show_summary', uiLang)}</button>
+          <button id="aw-sum-tts" type="button" title="Read aloud" style="display:none">🔊</button>
+        </div>
+      </div>
+      <div id="aw-sum-body" hidden style="white-space:pre-wrap;margin-top:6px"></div>
+    </div>
+  `;
+
+  const body   = sumEl.querySelector('#aw-sum-body');
+  const show   = sumEl.querySelector('#aw-sum-show');
+  const ttsBtn = sumEl.querySelector('#aw-sum-tts');
+
+  if (!body || !show || !ttsBtn) return;
+
+  // Prepare summary text (translate first if needed)
+  let renderText = bulletsText || '';
+  if (targetLangOrNull) {
+    if (statusEl) statusEl.textContent = tr('translating', uiLang);
+    try {
+      renderText = await maybeTranslate(
+        renderText.replace(/^[#]+\s+/gm, ''),
+        targetLangOrNull,
+        statusEl,
+        uiLang
+      );
+    } catch {}
+    if (statusEl) statusEl.textContent = tr('done', uiLang);
+  }
+  body.textContent = renderText.replace(/^[#]+\s+/gm, '');
+
+  // Toggle behavior
+  sumEl.dataset.expanded = 'false';
+  show.addEventListener('click', ()=>{
+    const open = sumEl.dataset.expanded === 'true';
+    const next = !open;
+    sumEl.dataset.expanded = next ? 'true' : 'false';
+    body.hidden = !next;
+    show.textContent = next ? tr('hide_summary', uiLang) : tr('show_summary', uiLang);
+    ttsBtn.style.display = next ? '' : 'none';
+    if (!next) ttsCancel(); // stop if collapsing
+  });
+
+  // TTS play/pause/resume
+  ttsBtn.addEventListener('click', async ()=>{
+    if (!window.speechSynthesis) return;
+    await ensureVoicesLoaded();
+    const panel = document.getElementById('agree-smart-panel');
+    const langCode = panel?.querySelector('#agree-smart-translate')?.value || 'en';
+    const langTag  = LANG_TAGS[langCode] || 'en-US';
+
+    if (!__ttsSpeaking) {
+      const text = (body.innerText || '')
+        .replace(/^[#]+\s+/gm, '')
+        .replace(/^\s*[-*•]\s*/gm, '')
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      if (!text) return;
+      ttsCancel();
+      ttsEnqueue(text, langTag, 1.0, 1.0);
+      ttsPlayQueue();
+      ttsBtn.textContent = '⏸️';
+      return;
+    }
+
+    if (__ttsPaused) {
+      ttsResume();
+      ttsBtn.textContent = '⏸️';
+    } else {
+      ttsPause();
+      ttsBtn.textContent = '▶️';
+    }
+  });
+}
 
 async function renderRiskBlock(riskEl, parsedRaw, score, lang, targetLang, statusEl){
   const vals = [
@@ -466,17 +641,26 @@ async function analyzeSelection(status, riskEl, sumEl, linksEl, panel){
   const parsed = await extractRisks(text);
   __agreewise_lastParsed = parsed;
 
-  await renderRiskBlock(riskEl, parsed, parsed.__score, lang, (targetLang!=='en'?targetLang:null), status);
+  await renderRiskBlock(
+    riskEl,
+    parsed,
+    parsed.__score,
+    lang,
+    (targetLang!=='en'?targetLang:null),
+    status
+  );
+let out = sectionSummary; // just the summary text
 
-  let out = `### ${tr('selected_heading', lang)}\n${sectionSummary}`;
   __agreewise_lastSummaryRaw = out;
-  if (targetLang && targetLang !== 'en'){
-    status.textContent = tr('translating', lang);
-    out = await maybeTranslate(out, targetLang, status, lang);
-  }
-  sumEl.innerHTML = `<div style="margin-top:8px">${out.replace(/\n/g,'<br/>')}</div>`;
 
-  // Links
+  await renderSummary(
+    sumEl,
+    out,
+    (targetLang && targetLang !== 'en') ? targetLang : null,
+    lang,
+    status
+  );
+
   if (links && links.length){
     status.textContent = tr('following_links', lang);
     const linkSums = await summarizeLinks(links);
@@ -505,17 +689,27 @@ async function analyzePage(status, riskEl, sumEl, panel){
   const parsed = await extractRisks(text);
   __agreewise_lastParsed = parsed;
 
-  await renderRiskBlock(riskEl, parsed, parsed.__score, lang, (targetLang!=='en'?targetLang:null), status);
+  await renderRiskBlock(
+    riskEl,
+    parsed,
+    parsed.__score,
+    lang,
+    (targetLang!=='en'?targetLang:null),
+    status
+  );
 
-  let out = `### ${tr('page_heading', lang)}\n${parts}`;
+  let out = parts; // just the summary text
   __agreewise_lastSummaryRaw = out;
-  if (targetLang && targetLang !== 'en'){
-    status.textContent = tr('translating', lang);
-    out = await maybeTranslate(out, targetLang, status, lang);
-  }
-  sumEl.innerHTML = `<div style="margin-top:8px">${out.replace(/\n/g,'<br/>')}</div>`;
-  __agreewise_lastLinkSums = null;
 
+  await renderSummary(
+    sumEl,
+    out,
+    (targetLang && targetLang !== 'en') ? targetLang : null,
+    lang,
+    status
+  );
+
+  __agreewise_lastLinkSums = null;
   status.textContent = tr('done', lang);
 }
 
