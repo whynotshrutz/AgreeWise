@@ -78,3 +78,6 @@ btn.addEventListener('mousemove', (e)=>{
 btn.addEventListener('mouseleave', ()=>{
   btn.style.setProperty('--mx','50%'); btn.style.setProperty('--my','50%'); btn.style.setProperty('--glow','rgba(0,0,0,0)');
 });
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  chrome.runtime.openOptionsPage(); // opens a full settings page, or you can toggle an in-popup panel
+});

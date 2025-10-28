@@ -44,6 +44,30 @@ body[data-theme="dark"] .btn-3d:hover{ --glow: rgba(0,255,200,.45) }
 
 .hint{color:#64748b;margin:10px 2px 0 2px;font-size:12px}
 *{transition:background-color 200ms ease, color 200ms ease, border-color 200ms ease}
+/* ============ SETTINGS BUTTON ============ */
+#settingsBtn {
+  background: transparent;
+  border: none;
+  color: inherit;               /* inherit text/icon color from header */
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+#settingsBtn:hover,
+#settingsBtn:focus {
+  background: rgba(128, 128, 128, 0.15);  /* subtle hover tone */
+  outline: none;
+}
+
+#settingsBtn svg {
+  width: 18px;
+  height: 18px;
+}
 
 @media (prefers-color-scheme: dark){
   body:not([data-theme]){background:#0e1117; color:#e5e7eb}
