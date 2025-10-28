@@ -712,7 +712,7 @@ async function analyzePage(status, riskEl, sumEl, panel){
   __agreewise_lastLinkSums = null;
   status.textContent = tr('done', lang);
 }
-
+//make changes check
 /* =============================
    ENTRY
 ============================= */
