@@ -4,6 +4,14 @@
   --btn-shadow:0 6px 0 #cbd5e1, 0 10px 24px rgba(0,0,0,.08);
   --btn-shadow-active:0 2px 0 #cbd5e1, 0 6px 16px rgba(0,0,0,.12);
 }
+body.no-anim, body.no-anim * {
+  transition: none !important;
+}
+
+/* Add class to body during initialization */
+body.initializing {
+  opacity: 0;
+}
 html,body{margin:0;padding:0}
 body{
   width:320px; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
