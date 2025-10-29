@@ -102,6 +102,21 @@ function simpleStem(word) {
     }
     return word;
 }
+function detectPageLang(){
+  const attr = document.documentElement.getAttribute('lang')?.toLowerCase();
+  if (attr) return attr.split('-')[0];
+
+  const meta = document.querySelector('meta[http-equiv="content-language"], meta[name="language"]')?.content;
+  if (meta) return meta.split(',')[0].trim().toLowerCase().split('-')[0];
+
+  const sample = (document.body.innerText || '').slice(0, 2000);
+  if (/[ऀ-ॿ]/.test(sample)) return 'hi';  // Hindi
+  if (/[ء-ي]/.test(sample)) return 'ar';  // Arabic
+  if (/[一-龯]/.test(sample)) return 'zh'; // Chinese
+  if (/[ぁ-んァ-ン]/.test(sample)) return 'ja'; // Japanese
+  if (/[가-힣]/.test(sample)) return 'ko'; // Korean
+  return (navigator.language || 'en').toLowerCase().split('-')[0];
+}
 
 
 /* =============================
@@ -116,7 +131,36 @@ let __agreewise_lastSummaryRaw = '';     // English markdown summary (section/pa
 ============================= */
 async function ensurePanel(){
   let el = document.getElementById('agree-smart-panel');
-  if (el) return el;
+  if (el) {
+    // ——— keep theme in sync ———
+    const theme = await getTheme();
+    setPanelTheme(el, theme);
+
+    // ——— make sure language is applied even when panel already exists ———
+    const select = el.querySelector('#agree-smart-translate');
+    // If select has no value yet, try to auto-pick from detected page lang
+    if (select && !select.value) {
+      const dl = detectPageLang(); // e.g., 'ar'
+      const opts = Array.from(select.options);
+      const hit = opts.find(o => o.value === dl) || opts.find(o => o.value.startsWith(dl));
+      if (hit) select.value = hit.value;
+    }
+
+    // Apply lang/dir attributes
+    const code = (select?.value || 'en').split('-')[0];
+    const rtl = new Set(['ar','he','fa','ur']);
+    el.setAttribute('lang', code);
+    el.setAttribute('dir', rtl.has(code) ? 'rtl' : 'ltr');
+
+    // Localize current status line
+    const status = el.querySelector('#agree-smart-status');
+    if (status) status.textContent = tr('parsing', code);
+
+    // ——— IMPORTANT: also localize the already-mounted Summary UI ———
+    applySummaryUILocale(el, code);
+
+    return el;
+  }
 
   el = document.createElement('section');
   el.id = 'agree-smart-panel';
@@ -151,18 +195,41 @@ async function ensurePanel(){
       </div>
     </header>
     <div class="body">
-      <div id="agree-smart-status" class="muted">Parsing…</div>
+      <div id="agree-smart-status" class="muted"></div>
       <div id="agree-smart-risk"></div>
       <div id="agree-smart-summary"></div>
       <div id="agree-smart-links"></div>
     </div>`;
   document.documentElement.appendChild(el);
+  // set theme
+const theme = await getTheme();
+setPanelTheme(el, theme);
+
+// auto-pick UI language
+const dl = detectPageLang();                 // e.g., 'ar'
+const select = el.querySelector('#agree-smart-translate');
+if (select) {
+  const opts = Array.from(select.options);
+  const hit = opts.find(o => o.value === dl) || opts.find(o => o.value.startsWith(dl));
+  if (hit) select.value = hit.value;
+}
+// set writing system + localize first status line
+const code = (select.value || 'en').split('-')[0];   // e.g., "ar"
+const rtl = new Set(['ar','he','fa','ur']);
+el.setAttribute('lang', code);
+el.setAttribute('dir', rtl.has(code) ? 'rtl' : 'ltr');
+
+// localize initial status text (was hard-coded English)
+const langNow = currentLang(el);
+const status = el.querySelector('#agree-smart-status');
+if (status) status.textContent = tr('parsing', langNow);
+
 
 // Close: stop speech and remove
 const closeBtn = el.querySelector('#agree-smart-close');
 closeBtn.onclick = () => { ttsCancel(); el.remove(); };
 
-const theme = await getTheme(); setPanelTheme(el, theme);
+// const theme = await getTheme(); setPanelTheme(el, theme);
 
 // On language change: stop TTS and re-render with buttons alive
 el.querySelector('#agree-smart-translate').addEventListener('change', async ()=>{
@@ -209,6 +276,8 @@ el.querySelector('#agree-smart-translate').addEventListener('change', async ()=>
   }
 
   status.textContent = tr('done', lang2);
+  applySummaryUILocale(el, lang2);
+
 });
 
   return el;
@@ -519,6 +588,18 @@ async function summarizeLinks(links){
     out.push({href, summary: (sum && sum.text) ? sum.text : sum});
     if (out.length>=5) break;
   } return out;
+}
+function applySummaryUILocale(panel, code){
+  // Summary header text
+  const sumHdr = panel.querySelector('#agree-smart-summary .aw-sum strong');
+  if (sumHdr) sumHdr.textContent = tr('summary_heading', code);
+
+  // Show/Hide button text
+  const showBtn = panel.querySelector('#agree-smart-summary #aw-sum-show');
+  if (showBtn) {
+    const expanded = panel.querySelector('#agree-smart-summary')?.dataset?.expanded === 'true';
+    showBtn.textContent = expanded ? tr('hide_summary', code) : tr('show_summary', code);
+  }
 }
 
 /* =============================

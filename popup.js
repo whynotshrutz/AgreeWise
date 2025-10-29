@@ -1,4 +1,14 @@
 // Popup: system default theme with manual override; robust injector; cursor-follow glow.
+
+ const UI_STRINGS = {
+  analyze: {
+    en:"Analyze", hi:"विश्लेषण", es:"Analizar", fr:"Analyser", de:"Analysieren",
+    it:"Analizza", "pt":"Analisar", "pt-BR":"Analisar", "pt-PT":"Analisar",
+    ja:"解析", ko:"분석", "zh":"分析", "zh-CN":"分析", "zh-TW":"分析",
+    ar:"تحليل", ru:"Анализировать",
+    bn:"বিশ্লেষণ", ta:"பகுப்பாய்வு", te:"విశ్లేషించు", mr:"विश्लेषण", gu:"વિશ્લેષણ"
+  }
+};
 const STORAGE_KEY = 'agreeSmartThemeMode'; // 'auto' | 'light' | 'dark'
 function sysDark(){ return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
 async function applyTheme(mode){
@@ -12,7 +22,6 @@ async function applyTheme(mode){
     } catch {}
   }
 }
-
 (async function initTheme(){
   const saved = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY] ?? 'auto';
   await applyTheme(saved);
@@ -41,8 +50,6 @@ document.getElementById('themeToggle').addEventListener('click', async ()=>{
   await chrome.storage.local.set({ [STORAGE_KEY]: next });
   await applyTheme(next);
 });
-
-
 
 function isBlocked(url){
   if (!url) return true;
@@ -93,4 +100,39 @@ btn.addEventListener('mouseleave', ()=>{
 });
 document.getElementById('settingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage(); // opens a full settings page, or you can toggle an in-popup panel
+});
+function tr(key, code){
+  const row = UI_STRINGS[key] || {};
+  return row[code] || row[code?.split('-')[0]] || row.en || key;
+}
+function isRTL(code){
+  const rtl = new Set(['ar','he','fa','ur']);
+  const base = (code||'').split('-')[0];
+  return rtl.has(base);
+}
+function applyAnalyzeLocale(code){
+  document.documentElement.lang = code || 'en';
+  document.documentElement.dir  = isRTL(code) ? 'rtl' : 'ltr';
+  const btn = document.getElementById('analyze');
+  const label = tr('analyze', code || 'en');
+  if (btn){
+    btn.textContent = label;
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+}
+
+// ===== ADD: detect active tab language and localize on load =====
+document.addEventListener('DOMContentLoaded', async ()=>{
+  try {
+    const [tab] = await chrome.tabs.query({active:true,currentWindow:true});
+    let code = 'en';
+    if (tab?.id) {
+      // chrome returns BCP-47 like "en", "es", "pt-PT", "zh-CN"
+      code = await new Promise(resolve => chrome.tabs.detectLanguage(tab.id, resolve)) || 'en';
+    }
+    applyAnalyzeLocale(code);
+  } catch {
+    applyAnalyzeLocale('en');
+  }
 });
