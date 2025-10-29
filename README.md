@@ -67,4 +67,4 @@ Make sure to have atleast 20 GB space in your local PC <br>
 6. Relaunch Chrome at each step<br>
 Test the Gemini Nano<br>
 Head to https://chrome.dev/web-ai-demos/prompt-api-playground/, test via chat<br>
-<\details>
+</details>
