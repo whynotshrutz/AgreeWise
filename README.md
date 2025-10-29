@@ -58,13 +58,13 @@ chrome://extensions/
 
 <details>
 <summary>Setting up Gemini Nano</summary>
-Here are the instruction to get started with Gemini Nano using chrome \
-Make sure to have atleast 20 GB space in your local PC \
-1. Download the Chrome Canary - https://www.google.com/chrome/canary/ \
-2. Open Chrome Canary, head to chrome://flags/#optimization-guide-on-device-model, select -> BypassPerfRequirement \
-3. Go to chrome://flags/#prompt-api-for-gemini-nano. Select Enabled \
-4. Also see other capabilities in the settings like Reader , Writer API, Summarization API, etc. If you’d like, Enable them too\
-6. Relaunch Chrome at each step\
-Test the Gemini Nano\
-Head to https://chrome.dev/web-ai-demos/prompt-api-playground/, test via chat\
+Here are the instruction to get started with Gemini Nano using chrome <br>
+Make sure to have atleast 20 GB space in your local PC <br>
+1. Download the Chrome Canary - https://www.google.com/chrome/canary/ <br>
+2. Open Chrome Canary, head to chrome://flags/#optimization-guide-on-device-model, select -> BypassPerfRequirement <br>
+3. Go to chrome://flags/#prompt-api-for-gemini-nano. Select Enabled <br>
+4. Also see other capabilities in the settings like Reader , Writer API, Summarization API, etc. If you’d like, Enable them too<br>
+6. Relaunch Chrome at each step<br>
+Test the Gemini Nano<br>
+Head to https://chrome.dev/web-ai-demos/prompt-api-playground/, test via chat<br>
 <\details>
