@@ -402,21 +402,33 @@ async function summarizeChunks(chunks, mode='key-points'){
   return { text: out.join('\n'), category };
 }
 
-async function extractRisks(fullText){
+async function extractRisks(fullText, category = 0){
   if (!('LanguageModel' in self) || typeof LanguageModel.availability!=='function') throw new Error('Prompt API not supported');
   const av = await LanguageModel.availability(); if (av==='unavailable') throw new Error('Language model unavailable');
   const session = await LanguageModel.create({ expectedInputs:[{type:'text',languages:['en']}], expectedOutputs:[{type:'text',languages:['en']}] });
   const schema = {
     type:"object", properties:{
+      // Common fields (all categories)
       collectsPersonalData:{type:"boolean"}, sharesWithThirdParties:{type:"boolean"}, tracksForAds:{type:"boolean"},
       arbitrationOrClassActionWaiver:{type:"boolean"}, autoRenewalOrSubscription:{type:"boolean"},
       accountDeletionProcess:{type:"string"}, dataRetentionPeriod:{type:"string"}, jurisdictionGoverningLaw:{type:"string"},
-      ageRestrictions:{type:"string"}, notableOtherRisks:{type:"array", items:{type:"string"}}
+      ageRestrictions:{type:"string"}, notableOtherRisks:{type:"array", items:{type:"string"}},
+      // Category 1 (Social Media) fields
+      under18HandlingAndParentalRights:{type:"string"}, prohibitedConductCoverage:{type:"string"},
+      // Category 2 (Payment/Financial) fields
+      financialDataStoredAndDuration:{type:"string"}, kycAmlAndAccountFreezes:{type:"string"}, unauthorizedTransactionLiability:{type:"string"},
+      // Category 3 (E-commerce) fields
+      warrantyDefectPolicyAndJurisdiction:{type:"string"}, buyNowPayLaterAndLateFees:{type:"string"},
+      // Category 4 (Job/Career) fields
+      dataRetentionAfterJobClosure:{type:"string"}
     },
     required:["collectsPersonalData","sharesWithThirdParties","tracksForAds","arbitrationOrClassActionWaiver","autoRenewalOrSubscription"]
   };
-  // #FIX ME - 4000 is not enough
-  const prompt = `You are a compliance summarizer. Extract fields tersely from the Terms below.
+  
+  // Get the appropriate prompt based on category, fallback to category 0 (default) if category not found
+  const categoryPrompt = (typeof RISK_EXTRACTION_PROMPTS !== 'undefined' && RISK_EXTRACTION_PROMPTS[category]) 
+    ? RISK_EXTRACTION_PROMPTS[category] 
+    : (RISK_EXTRACTION_PROMPTS && RISK_EXTRACTION_PROMPTS[0]) || `You are a compliance summarizer. Extract fields tersely from the Terms below.
 - collectsPersonalData (true/false)
 - sharesWithThirdParties (true/false)
 - tracksForAds (true/false)
@@ -430,17 +442,65 @@ async function extractRisks(fullText){
 If unknown, set booleans=false and strings="".
 
 TERMS:
-${fullText.slice(0,4000)}`; 
-  const raw = await session.prompt(prompt, { responseConstraint: schema });
-  const parsed = JSON.parse(raw);
+`;
+  
+  // Chunk fullText into 4000 character splits
+  const chunks = chunk(fullText, 4000);
+  const allResults = [];
+  
+  // Process each chunk
+  for (let i = 0; i < chunks.length; i++) {
+    const prompt = categoryPrompt + chunks[i];
+    const raw = await session.prompt(prompt, { responseConstraint: schema });
+    const parsed = JSON.parse(raw);
+    allResults.push(parsed);
+  }
+  
+  // Helper function to find first non-empty string value across all results
+  const findFirstNonEmpty = (fieldName) => {
+    return allResults.find(r => r[fieldName] && String(r[fieldName]).trim())?.[fieldName] || '';
+  };
+  
+  // Merge results from all chunks
+  const merged = {
+    // Common boolean fields (use OR logic - if any chunk says true, it's true)
+    collectsPersonalData: allResults.some(r => r.collectsPersonalData === true),
+    sharesWithThirdParties: allResults.some(r => r.sharesWithThirdParties === true),
+    tracksForAds: allResults.some(r => r.tracksForAds === true),
+    arbitrationOrClassActionWaiver: allResults.some(r => r.arbitrationOrClassActionWaiver === true),
+    autoRenewalOrSubscription: allResults.some(r => r.autoRenewalOrSubscription === true),
+    // Common string fields
+    accountDeletionProcess: findFirstNonEmpty('accountDeletionProcess'),
+    dataRetentionPeriod: findFirstNonEmpty('dataRetentionPeriod'),
+    jurisdictionGoverningLaw: findFirstNonEmpty('jurisdictionGoverningLaw'),
+    ageRestrictions: findFirstNonEmpty('ageRestrictions'),
+    notableOtherRisks: Array.from(new Set(
+      allResults
+        .flatMap(r => r.notableOtherRisks || [])
+        .filter(item => item && item.trim())
+    )).slice(0, 5),
+    // Category 1 (Social Media) fields
+    under18HandlingAndParentalRights: findFirstNonEmpty('under18HandlingAndParentalRights'),
+    prohibitedConductCoverage: findFirstNonEmpty('prohibitedConductCoverage'),
+    // Category 2 (Payment/Financial) fields
+    financialDataStoredAndDuration: findFirstNonEmpty('financialDataStoredAndDuration'),
+    kycAmlAndAccountFreezes: findFirstNonEmpty('kycAmlAndAccountFreezes'),
+    unauthorizedTransactionLiability: findFirstNonEmpty('unauthorizedTransactionLiability'),
+    // Category 3 (E-commerce) fields
+    warrantyDefectPolicyAndJurisdiction: findFirstNonEmpty('warrantyDefectPolicyAndJurisdiction'),
+    buyNowPayLaterAndLateFees: findFirstNonEmpty('buyNowPayLaterAndLateFees'),
+    // Category 4 (Job/Career) fields
+    dataRetentionAfterJobClosure: findFirstNonEmpty('dataRetentionAfterJobClosure')
+  };
+  
   let score=100;
-  if (parsed.collectsPersonalData) score-=15;
-  if (parsed.sharesWithThirdParties) score-=20;
-  if (parsed.tracksForAds) score-=10;
-  if (parsed.arbitrationOrClassActionWaiver) score-=20;
-  if (parsed.autoRenewalOrSubscription) score-=10;
-  parsed.__score = Math.max(0, Math.min(100, score));
-  return parsed;
+  if (merged.collectsPersonalData) score-=15;
+  if (merged.sharesWithThirdParties) score-=20;
+  if (merged.tracksForAds) score-=10;
+  if (merged.arbitrationOrClassActionWaiver) score-=20;
+  if (merged.autoRenewalOrSubscription) score-=10;
+  merged.__score = Math.max(0, Math.min(100, score));
+  return merged;
 }
 
 /* =============================
@@ -785,8 +845,15 @@ async function analyzeSelection(status, riskEl, sumEl, linksEl, panel){
   console.log(sectionSummary.category)
   let out = (sectionSummary && sectionSummary.text) ? sectionSummary.text : sectionSummary; // just the summary text
   console.log('Section summary:', out);
+  const category = sectionSummary?.category ?? 0; // Get category from summary, default to 0 if not available
   status.textContent = tr('extracting_risks', lang);
-  const parsed = await extractRisks(out);
+  // Token optimization: normalize -> remove stop words -> stem
+  const __normSel = normalizeText(out || '');
+  const __tokSel = __normSel.split(/\s+/).filter(Boolean);
+  const __noStopSel = removeStopWords(__tokSel);
+  const __stemSel = __noStopSel.map(simpleStem);
+  const __optimizedSel = __stemSel.join(' ');
+  const parsed = await extractRisks(__optimizedSel, category);
   __agreewise_lastParsed = parsed;
 
   await renderRiskBlock(
@@ -834,8 +901,15 @@ async function analyzePage(status, riskEl, sumEl, panel){
   const parts = await summarizeChunks(chunk(text), 'key-points');
   console.log(parts.category)
   let out = (parts && parts.text) ? parts.text : parts; // just the summary text
+  const category = parts?.category ?? 0; // Get category from summary, default to 0 if not available
   status.textContent = tr('extracting_risks', lang);
-  const parsed = await extractRisks(out);
+  // Token optimization: normalize -> remove stop words -> stem
+  const __normPage = normalizeText(out || '');
+  const __tokPage = __normPage.split(/\s+/).filter(Boolean);
+  const __noStopPage = removeStopWords(__tokPage);
+  const __stemPage = __noStopPage.map(simpleStem);
+  const __optimizedPage = __stemPage.join(' ');
+  const parsed = await extractRisks(__optimizedPage, category);
   __agreewise_lastParsed = parsed;
 
   await renderRiskBlock(
