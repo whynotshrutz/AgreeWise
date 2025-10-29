@@ -14,3 +14,9 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     chrome.tabs.sendMessage(tab.id, { type: "AGREE_SMART_ANALYZE_SELECTION" });
   }
 });
+chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
+  if (msg?.type === 'agreewise:settings:update') {
+    const { enterprise, location } = msg.payload || {};
+    // Apply policy switches here
+  }
+});

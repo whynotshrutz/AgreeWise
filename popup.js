@@ -98,9 +98,115 @@ btn.addEventListener('mousemove', (e)=>{
 btn.addEventListener('mouseleave', ()=>{
   btn.style.setProperty('--mx','50%'); btn.style.setProperty('--my','50%'); btn.style.setProperty('--glow','rgba(0,0,0,0)');
 });
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  chrome.runtime.openOptionsPage(); // opens a full settings page, or you can toggle an in-popup panel
+// ===== Full-screen Settings View wiring (class-based) =====
+const settingsBtn   = document.getElementById('settingsBtn');
+const viewSettings  = document.getElementById('view-settings');
+const btnBack       = document.getElementById('settingsBack');
+const btnDone       = document.getElementById('settingsDone');
+
+function showSettings() {
+  document.body.classList.add('view-settings');
+  viewSettings.removeAttribute('hidden');
+  settingsBtn.setAttribute('aria-expanded', 'true');
+}
+function hideSettings() {
+  document.body.classList.remove('view-settings');
+  viewSettings.setAttribute('hidden', '');
+  settingsBtn.setAttribute('aria-expanded', 'false');
+}
+
+settingsBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  showSettings();
 });
+btnBack.addEventListener('click', hideSettings);
+btnDone.addEventListener('click', hideSettings);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('view-settings')) hideSettings();
+});
+
+
+// ===== Persisted settings: enterprise toggle + location =====
+const SETTINGS_KEY = 'agreewiseSettings';
+const SETTINGS_DEFAULTS = { enterprise: false, location: 'auto' };
+
+// Continents -> Countries (extend as needed)
+const CONTINENTS = {
+  "Auto / General": [{ code: 'auto', name: 'Auto-detect' }],
+  "Asia": [
+    { code: 'IN', name: 'India' }, { code: 'SG', name: 'Singapore' },
+    { code: 'AE', name: 'United Arab Emirates' }, { code: 'JP', name: 'Japan' },
+    { code: 'KR', name: 'South Korea' }
+  ],
+  "Europe": [
+    { code: 'DE', name: 'Germany' }, { code: 'FR', name: 'France' },
+    { code: 'ES', name: 'Spain' }, { code: 'IT', name: 'Italy' },
+    { code: 'GB', name: 'United Kingdom' }
+  ],
+  "North America": [
+    { code: 'US', name: 'United States' }, { code: 'CA', name: 'Canada' },
+    { code: 'MX', name: 'Mexico' }
+  ],
+  "South America": [
+    { code: 'BR', name: 'Brazil' }, { code: 'AR', name: 'Argentina' },
+    { code: 'CL', name: 'Chile' }, { code: 'CO', name: 'Colombia' }
+  ],
+  "Africa": [
+    { code: 'ZA', name: 'South Africa' }, { code: 'NG', name: 'Nigeria' },
+    { code: 'KE', name: 'Kenya' }, { code: 'EG', name: 'Egypt' }
+  ],
+  "Oceania": [
+    { code: 'AU', name: 'Australia' }, { code: 'NZ', name: 'New Zealand' }
+  ],
+};
+
+async function loadSettings() {
+  const raw = await chrome.storage.local.get(SETTINGS_KEY);
+  return { ...SETTINGS_DEFAULTS, ...(raw[SETTINGS_KEY] || {}) };
+}
+async function saveSettings(next) {
+  await chrome.storage.local.set({ [SETTINGS_KEY]: next });
+  // notify others if needed
+  try { chrome.runtime?.sendMessage?.({ type: 'agreewise:settings:update', payload: next }); } catch {}
+}
+
+function populateLocationSelect() {
+  if (!locationSelect) return;
+  locationSelect.innerHTML = '';
+  for (const [group, list] of Object.entries(CONTINENTS)) {
+    const og = document.createElement('optgroup');
+    og.label = group;
+    for (const { code, name } of list) {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = name;
+      og.appendChild(opt);
+    }
+    locationSelect.appendChild(og);
+  }
+}
+
+(async function initSettings() {
+  populateLocationSelect();
+  const st = await loadSettings();
+
+  if (toggleEnterprise) toggleEnterprise.checked = !!st.enterprise;
+
+  const exists = Array.from(locationSelect?.options || []).some(o => o.value === st.location);
+  if (locationSelect) locationSelect.value = exists ? st.location : 'auto';
+
+  toggleEnterprise?.addEventListener('change', async () => {
+    const cur = await loadSettings();
+    cur.enterprise = toggleEnterprise.checked;
+    await saveSettings(cur);
+  });
+  locationSelect?.addEventListener('change', async () => {
+    const cur = await loadSettings();
+    cur.location = locationSelect.value;
+    await saveSettings(cur);
+  });
+})();
+
 function tr(key, code){
   const row = UI_STRINGS[key] || {};
   return row[code] || row[code?.split('-')[0]] || row.en || key;

@@ -80,3 +80,148 @@ body[data-theme="dark"] .btn-3d:hover{ --glow: rgba(0,255,200,.45) }
 @media (prefers-color-scheme: dark){
   body:not([data-theme]){background:#0e1117; color:#e5e7eb}
 }
+/* ========= Full-screen Settings View ========= */
+#view-settings {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Top toolbar inside settings */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--btn-bg);
+  color: var(--fg);
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+.icon-btn:hover { background: var(--accent); color: #fff; }
+.toolbar-title { margin: 0; font-size: 14px; font-weight: 600; }
+.toolbar-spacer { margin-left: auto; }
+
+.settings-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
+/* Toggle */
+.toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.toggle input { display: none; }
+.slider {
+  width: 42px; height: 24px; border-radius: 999px; position: relative;
+  background: #bbb; transition: background .2s ease;
+}
+.slider::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s ease;
+}
+.toggle input:checked + .slider { background: #4caf50; }
+.toggle input:checked + .slider::after { transform: translateX(18px); }
+.toggle-label { font-size: 0.95rem; }
+
+/* Field + select */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 0.9rem; opacity: 0.85; }
+.select {
+  padding: 8px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--card); color: var(--fg);
+}
+.help { font-size: 0.8rem; opacity: 0.7; }
+
+/* Footer */
+.settings-footer {
+  margin-top: auto;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+/* View-state control: only one screen at a time */
+body.view-settings #topbar,
+body.view-settings #wrap {
+  display: none !important;
+}
+body.view-settings #view-settings {
+  display: flex !important;
+}
+
+/* Default: settings view hidden unless body has .view-settings */
+body:not(.view-settings) #view-settings {
+  display: none !important;
+}
+/* Compact settings typography */
+#view-settings { font-size: 13px; }             /* smaller text only in settings */
+#view-settings .toolbar-title { font-size: 13px; }
+
+/* List layout */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: 0; }
+
+.row-label {
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+/* Right-side control should hug the right */
+.setting-row > .toggle,
+.setting-row > .select {
+  margin-left: auto;
+}
+
+/* Smaller toggle */
+.toggle-sm .slider {
+  width: 36px;
+  height: 20px;
+}
+.toggle-sm .slider::after {
+  width: 14px;
+  height: 14px;
+  top: 3px;
+  left: 3px;
+}
+.toggle-sm input:checked + .slider::after {
+  transform: translateX(16px);
+}
+
+/* Smaller select */
+.select-sm {
+  padding: 6px 10px;
+  height: 30px;
+  border-radius: 8px;
+  max-width: 58%;
+}
+
+/* Tighter body + footer spacing */
+.settings-body { padding: 12px; }
+.settings-footer .btn-3d { padding: 10px 12px; }
