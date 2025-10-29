@@ -18,7 +18,8 @@ When you click **Analyze**:
   - Arbitration or auto-renewal clauses  
 - Optionally uses the **Translator API** to translate the full analysis.  
 - If the text contains PDFs or links, it follows and analyzes those as well.  
-- Displays a collapsible **Summary** section with play/pause audio (TTS) support.  
+- Displays a collapsible **Summary** section with play/pause audio (TTS) support. 
+- Adapts automatically to Chrome’s system theme and lets you manually toggle between light/dark. 
 - The interface automatically localizes button labels and headings (Show/Hide Summary) in the user’s chosen language.  
 
 All processing happens **entirely on-device** — no cloud calls, no API keys, and no privacy leaks.
@@ -31,7 +32,7 @@ All processing happens **entirely on-device** — no cloud calls, no API keys, a
 - 🌐 Multilingual translation with auto-localized UI text  
 - 🔊 Read-aloud option with play/pause and auto-stop  
 - 📎 Follows PDF or external links for deeper analysis  
-- 🕶️ Auto-detects system theme (light/dark)
++ 🕶️ Auto-detects system theme (light/dark) with manual toggle override
 
 ## 🧩 Load the AgreeWise Extension
 

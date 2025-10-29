@@ -1,35 +1,48 @@
 // Popup: system default theme with manual override; robust injector; cursor-follow glow.
 const STORAGE_KEY = 'agreeSmartThemeMode'; // 'auto' | 'light' | 'dark'
-
 function sysDark(){ return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
-
 async function applyTheme(mode){
-  const isDark = mode === 'auto' ? sysDark() : (mode === 'dark');
-  document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  const resolved = (mode === 'auto') ? (sysDark() ? 'dark' : 'light') : mode; // 'light' | 'dark'
+  document.body.setAttribute('data-theme', resolved);
+
   const [tab] = await chrome.tabs.query({active:true,currentWindow:true});
-  if (tab?.id) { try {
-    await chrome.tabs.sendMessage(tab.id, { type:'AGREE_SMART_THEME_CHANGED', theme: isDark ? 'dark' : 'white' });
-  } catch {} }
+  if (tab?.id) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type:'AGREE_SMART_THEME_CHANGED', theme: resolved }); // send 'light'|'dark'
+    } catch {}
+  }
 }
 
 (async function initTheme(){
   const saved = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY] ?? 'auto';
   await applyTheme(saved);
+
   if (saved === 'auto' && window.matchMedia){
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener?.('change', () => applyTheme('auto'));
+    const onChange = () => applyTheme('auto');
+    mq.addEventListener?.('change', onChange);
+    if (!mq.addEventListener) mq.addListener(onChange);
   }
 })();
 
-document.getElementById('themeToggle').addEventListener('click', async (e)=>{
+document.getElementById('themeToggle').addEventListener('click', async ()=>{
   const store = await chrome.storage.local.get(STORAGE_KEY);
   const current = store[STORAGE_KEY] ?? 'auto';
-  if (e.shiftKey){ await chrome.storage.local.set({[STORAGE_KEY]:'auto'}); await applyTheme('auto'); return; }
-  const effectiveDark = current === 'auto' ? sysDark() : (current === 'dark');
-  const next = effectiveDark ? 'light' : 'dark';
-  await chrome.storage.local.set({[STORAGE_KEY]:next});
+
+  let next;
+  if (current === 'auto') {
+    // flip to the opposite of Chrome's current theme
+    next = sysDark() ? 'light' : 'dark';
+  } else {
+    // go back to Auto (follow Chrome)
+    next = 'auto';
+  }
+
+  await chrome.storage.local.set({ [STORAGE_KEY]: next });
   await applyTheme(next);
 });
+
+
 
 function isBlocked(url){
   if (!url) return true;

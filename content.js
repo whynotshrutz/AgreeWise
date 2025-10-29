@@ -8,7 +8,7 @@ function sysDark(){ return window.matchMedia && window.matchMedia('(prefers-colo
 async function getTheme(){
   const { agreeSmartThemeMode='auto' } = await chrome.storage.local.get('agreeSmartThemeMode');
   const final = agreeSmartThemeMode === 'auto' ? (sysDark() ? 'dark' : 'light') : agreeSmartThemeMode;
-  return final === 'dark' ? 'dark' : 'white';
+  return final === 'dark' ? 'dark' : 'light';
 }
 function setPanelTheme(panel, theme){ panel.setAttribute('data-theme', theme); }
 
@@ -672,11 +672,13 @@ async function renderLinkSummaries(linksEl, linkSumsRaw, lang, targetLang, statu
 chrome.runtime.onMessage.addListener((msg, _s, sendResponse)=>{
   if (msg?.type==='AGREE_SMART_PING'){ sendResponse({ok:true}); return true; }
 });
-chrome.runtime.onMessage.addListener(async (msg)=>{
-  if (msg?.type==='AGREE_SMART_THEME_CHANGED'){
-    const el = document.getElementById('agree-smart-panel'); if (el) setPanelTheme(el, msg.theme==='dark'?'dark':'white');
+chrome.runtime.onMessage.addListener((msg)=>{
+  if (msg?.type === 'AGREE_SMART_THEME_CHANGED') {
+    const el = document.getElementById('agree-smart-panel');
+    if (el) setPanelTheme(el, msg.theme === 'dark' ? 'dark' : 'light');
   }
 });
+
 
 /* =============================
    ANALYSIS FLOWS
