@@ -109,12 +109,18 @@ function detectPageLang(){
   const meta = document.querySelector('meta[http-equiv="content-language"], meta[name="language"]')?.content;
   if (meta) return meta.split(',')[0].trim().toLowerCase().split('-')[0];
 
-  const sample = (document.body.innerText || '').slice(0, 2000);
-  if (/[ऀ-ॿ]/.test(sample)) return 'hi';  // Hindi
-  if (/[ء-ي]/.test(sample)) return 'ar';  // Arabic
-  if (/[一-龯]/.test(sample)) return 'zh'; // Chinese
-  if (/[ぁ-んァ-ン]/.test(sample)) return 'ja'; // Japanese
-  if (/[가-힣]/.test(sample)) return 'ko'; // Korean
+  const sample = (document.body.innerText || '').slice(0, 100);
+  // If 70 or more characters in the sample belong to a script, assume that language
+  const counts = {
+    hi: (sample.match(/[ऀ-ॿ]/g) || []).length,      // Hindi (Devanagari)
+    ar: (sample.match(/[ء-ي]/g) || []).length,       // Arabic
+    zh: (sample.match(/[一-龯]/g) || []).length,      // Chinese (CJK Unified Ideographs)
+    ja: (sample.match(/[ぁ-んァ-ン]/g) || []).length, // Japanese (Hiragana/Katakana)
+    ko: (sample.match(/[가-힣]/g) || []).length       // Korean (Hangul)
+  };
+  for (const [langCode, count] of Object.entries(counts)){
+    if (count >= 70) return langCode;
+  }
   return (navigator.language || 'en').toLowerCase().split('-')[0];
 }
 
