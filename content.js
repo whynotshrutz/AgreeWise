@@ -68,6 +68,14 @@ function currentLang(panel){
   const v = panel.querySelector('#agree-smart-translate')?.value || 'en';
   return v || 'en';
 }
+// Text normalisation function for Token Optimisation # TODO - use it in the analysis functions - Sourish 20251029
+function normalizeText(text) {
+    return text
+        .toLowerCase()                    // Convert to lowercase
+        .replace(/[^\w\s]/g, '')         // Remove punctuation
+        .replace(/\s+/g, ' ')            // Normalize whitespace
+        .trim();                         // Remove leading/trailing spaces
+}
 
 /* =============================
    STATE (for re-translation)
