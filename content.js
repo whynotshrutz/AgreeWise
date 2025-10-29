@@ -70,12 +70,39 @@ function currentLang(panel){
 }
 // Text normalisation function for Token Optimisation # TODO - use it in the analysis functions - Sourish 20251029
 function normalizeText(text) {
+   // Usage const optimized = normalizeText("Hello, World! How are you?");
     return text
         .toLowerCase()                    // Convert to lowercase
         .replace(/[^\w\s]/g, '')         // Remove punctuation
         .replace(/\s+/g, ' ')            // Normalize whitespace
         .trim();                         // Remove leading/trailing spaces
 }
+// Stop words removal for Token Optimisation # TODO - use it in the analysis functions - Sourish 20251029
+const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should']);
+function removeStopWords(tokens) {
+   /*
+   Usage
+   const tokens = ['the', 'quick', 'brown', 'fox', 'is', 'jumping'];
+   const filtered = removeStopWords(tokens);
+   */
+    return tokens.filter(token => !stopWords.has(token.toLowerCase()));
+}
+// Stemming for Token Optimisation # TODO - use it in the analysis functions - Sourish 20251029
+function simpleStem(word) {
+   /*
+   Usage
+   const stemmed = ['running', 'jumped', 'faster'].map(simpleStem);
+   */
+    const suffixes = ['ing', 'ed', 'er', 'est', 'ly', 's'];
+    
+    for (let suffix of suffixes) {
+        if (word.endsWith(suffix) && word.length > suffix.length + 2) {
+            return word.slice(0, -suffix.length);
+        }
+    }
+    return word;
+}
+
 
 /* =============================
    STATE (for re-translation)
