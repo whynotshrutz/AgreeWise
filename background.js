@@ -8,6 +8,9 @@ chrome.runtime.onInstalled.addListener(() => {
     });
   });
 });
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.set({ agreeEnterpriseMode: false });
+});
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "agreewise-analyze-selection" && tab?.id) {
