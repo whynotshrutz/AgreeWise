@@ -11,6 +11,12 @@ async function getTheme(){
   return final === 'dark' ? 'dark' : 'light';
 }
 function setPanelTheme(panel, theme){ panel.setAttribute('data-theme', theme); }
+// === Enterprise/location settings ===
+async function getEnterpriseSettings(){
+  const { agreeEnterpriseMode=false, agreeLocationCountry='' } =
+    await chrome.storage.local.get(['agreeEnterpriseMode','agreeLocationCountry']);
+  return { agreeEnterpriseMode, agreeLocationCountry };
+}
 
 /* =============================
    I18N (only headings/status; no "Translate" label)
@@ -402,10 +408,12 @@ async function summarizeChunks(chunks, mode='key-points'){
   return { text: out.join('\n'), category };
 }
 
-async function extractRisks(fullText, category = 0){
+async function extractRisks(fullText, category = 0, opts={}){
   if (!('LanguageModel' in self) || typeof LanguageModel.availability!=='function') throw new Error('Prompt API not supported');
   const av = await LanguageModel.availability(); if (av==='unavailable') throw new Error('Language model unavailable');
   const session = await LanguageModel.create({ expectedInputs:[{type:'text',languages:['en']}], expectedOutputs:[{type:'text',languages:['en']}] });
+  const ENTERPRISE_MODE = !!opts.enterprise;
+  const LOCATION_COUNTRY = (opts.locationCountry || '').toUpperCase();
   const schema = {
     type:"object", properties:{
       // Common fields (all categories)
@@ -420,7 +428,17 @@ async function extractRisks(fullText, category = 0){
       // Category 3 (E-commerce) fields
       warrantyDefectPolicyAndJurisdiction:{type:"string"}, buyNowPayLaterAndLateFees:{type:"string"},
       // Category 4 (Job/Career) fields
-      dataRetentionAfterJobClosure:{type:"string"}
+      dataRetentionAfterJobClosure:{type:"string"},
+      // Enterprise/Location (optional; harmless if absent)
+       ipClauseConflicts:{type:"boolean"},
+      dataResidencyMatchesUser:{type:"boolean"},
+      storageMechanismStrength:{type:"string"},
+      securityStandards:{type:"string"},
+      breachNoticeWindow:{type:"string"},
+      ssoSamlSupport:{type:"boolean"},
+      subprocessorDisclosure:{type:"string"},
+      ipDisputeJurisdiction:{type:"string"},
+      ipDisputeMatchesUser:{type:"boolean"}
     },
     required:["collectsPersonalData","sharesWithThirdParties","tracksForAds","arbitrationOrClassActionWaiver","autoRenewalOrSubscription"]
   };
@@ -450,7 +468,9 @@ TERMS:
   
   // Process each chunk
   for (let i = 0; i < chunks.length; i++) {
-    const prompt = categoryPrompt + chunks[i];
+    const policyCtx =
+    `\n\nCONTEXT:\n` + `ENTERPRISE_MODE=${ENTERPRISE_MODE}\n` + (LOCATION_COUNTRY ? `LOCATION_COUNTRY=${LOCATION_COUNTRY}\n` : ``);
+    const prompt = categoryPrompt + policyCtx + chunks[i];
     const raw = await session.prompt(prompt, { responseConstraint: schema });
     const parsed = JSON.parse(raw);
     allResults.push(parsed);
@@ -499,6 +519,12 @@ TERMS:
   if (merged.tracksForAds) score-=10;
   if (merged.arbitrationOrClassActionWaiver) score-=20;
   if (merged.autoRenewalOrSubscription) score-=10;
+  if (opts && opts.enterprise) {
+    if (merged.ipClauseConflicts) score -= 10;
+    if (LOCATION_COUNTRY && merged.dataResidencyMatchesUser === false) score -= 15;
+    if (LOCATION_COUNTRY && merged.ipDisputeMatchesUser === false) score -= 8;
+   if (merged.ssoSamlSupport === false) score -= 5;
+  }
   merged.__score = Math.max(0, Math.min(100, score));
   return merged;
 }
@@ -853,7 +879,13 @@ async function analyzeSelection(status, riskEl, sumEl, linksEl, panel){
   const __noStopSel = removeStopWords(__tokSel);
   const __stemSel = __noStopSel.map(simpleStem);
   const __optimizedSel = __stemSel.join(' ');
-  const parsed = await extractRisks(__optimizedSel, category);
+// Change both flows to pass the original full text
+  const { agreeEnterpriseMode, agreeLocationCountry } = await getEnterpriseSettings();
+ const parsed = await extractRisks(text, category, {
+   enterprise: !!agreeEnterpriseMode,
+   locationCountry: (agreeLocationCountry || '').trim()
+ });
+
   __agreewise_lastParsed = parsed;
 
   await renderRiskBlock(
@@ -909,7 +941,12 @@ async function analyzePage(status, riskEl, sumEl, panel){
   const __noStopPage = removeStopWords(__tokPage);
   const __stemPage = __noStopPage.map(simpleStem);
   const __optimizedPage = __stemPage.join(' ');
-  const parsed = await extractRisks(__optimizedPage, category);
+ //
+ const { agreeEnterpriseMode, agreeLocationCountry } = await getEnterpriseSettings();
+ const parsed = await extractRisks(text, category, {
+   enterprise: !!agreeEnterpriseMode,
+   locationCountry: (agreeLocationCountry || '').trim()
+ });
   __agreewise_lastParsed = parsed;
 
   await renderRiskBlock(
