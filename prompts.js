@@ -1,48 +1,24 @@
+// ============================================
 // Prompt storage for risk extraction based on document category
-// Categories: 0 = general/default, 1 = social media, 2 = payment, 3 = e-commerce, 4 = job/career
+// ============================================
 
-const RISK_EXTRACTION_PROMPTS = {
-  // Default / General
-  0: `Extract these fields from the Terms of Service:
-- collectsPersonalData
-- sharesWithThirdParties
-- tracksForAds
-- arbitrationOrClassActionWaiver
-- autoRenewalOrSubscription
-- accountDeletionProcess
-- dataRetentionPeriod
-- jurisdictionGoverningLaw
-- ageRestrictions
-- notableOtherRisks
+window.RISK_EXTRACTION_PROMPTS = {
+  // 0 — Default / General
+  0: `You are a compliance extractor.
+Return ONLY short factual phrases (≤10 words) for each field below.
+Do not explain, justify, or paraphrase. If unknown, write "Not specified".
 
-If ENTERPRISE_MODE:
-- ipClauseConflicts
-- dataResidencyMatchesUser
-- storageMechanismStrength
-- securityStandards
-- breachNoticeWindow
-- ssoSamlSupport
-- subprocessorDisclosure
-- ipDisputeJurisdiction
-- ipDisputeMatchesUser
-
-TERMS:
-`,
-
-  // Social Media
-  1: `Extract these fields from the platform Terms:
-- collectsPersonalData
-- sharesWithThirdParties
-- tracksForAds
-- arbitrationOrClassActionWaiver
-- autoRenewalOrSubscription
-- under18HandlingAndParentalRights
-- prohibitedConductCoverage
-- accountDeletionProcess
-- dataRetentionPeriod
-- jurisdictionGoverningLaw
-- ageRestrictions
-- notableOtherRisks
+Fields:
+- collectsPersonalData (true/false)
+- sharesWithThirdParties (true/false)
+- tracksForAds (true/false)
+- arbitrationOrClassActionWaiver (true/false)
+- autoRenewalOrSubscription (true/false)
+- accountDeletionProcess (≤10 words)
+- dataRetentionPeriod (≤10 words)
+- jurisdictionGoverningLaw (≤5 words)
+- ageRestrictions (≤5 words)
+- notableOtherRisks (≤5 short items)
 
 If ENTERPRISE_MODE:
 - ipClauseConflicts
@@ -55,24 +31,65 @@ If ENTERPRISE_MODE:
 - ipDisputeJurisdiction
 - ipDisputeMatchesUser
 
+Return output in plain text, one line per field, no explanations.
+
 TERMS:
 `,
 
-  // Payment / Financial Services
-  2: `Extract these fields from the Terms:
-- collectsPersonalData
-- sharesWithThirdParties
-- tracksForAds
-- arbitrationOrClassActionWaiver
-- autoRenewalOrSubscription
-- financialDataStoredAndDuration
-- kycAmlAndAccountFreezes
-- unauthorizedTransactionLiability
-- accountDeletionProcess
-- dataRetentionPeriod
-- jurisdictionGoverningLaw
-- ageRestrictions
-- notableOtherRisks
+  // 1 — Social Media
+  1: `You are a compliance extractor analyzing social media or community platform Terms.
+Respond with concise factual values (≤10 words) per field.
+Avoid commentary or filler. If unclear, write "Not specified".
+
+Fields:
+- collectsPersonalData (true/false)
+- sharesWithThirdParties (true/false)
+- tracksForAds (true/false)
+- arbitrationOrClassActionWaiver (true/false)
+- autoRenewalOrSubscription (true/false)
+- under18HandlingAndParentalRights (≤10 words)
+- prohibitedConductCoverage (≤10 words)
+- accountDeletionProcess (≤10 words)
+- dataRetentionPeriod (≤10 words)
+- jurisdictionGoverningLaw (≤5 words)
+- ageRestrictions (≤5 words)
+- notableOtherRisks (≤5 short items)
+
+If ENTERPRISE_MODE:
+- ipClauseConflicts
+- dataResidencyMatchesUser
+- storageMechanismStrength
+- securityStandards
+- breachNoticeWindow
+- ssoSamlSupport
+- subprocessorDisclosure
+- ipDisputeJurisdiction
+- ipDisputeMatchesUser
+
+Return output in plain text, one line per field, no explanations.
+
+TERMS:
+`,
+
+  // 2 — Payment / Financial Services
+  2: `You are a compliance extractor analyzing financial or payment-related Terms.
+Output concise factual answers (≤10 words) for each field.
+Write "Not specified" if no detail is found.
+
+Fields:
+- collectsPersonalData (true/false)
+- sharesWithThirdParties (true/false)
+- tracksForAds (true/false)
+- arbitrationOrClassActionWaiver (true/false)
+- autoRenewalOrSubscription (true/false)
+- financialDataStoredAndDuration (≤10 words)
+- kycAmlAndAccountFreezes (≤10 words)
+- unauthorizedTransactionLiability (≤10 words)
+- accountDeletionProcess (≤10 words)
+- dataRetentionPeriod (≤10 words)
+- jurisdictionGoverningLaw (≤5 words)
+- ageRestrictions (≤5 words)
+- notableOtherRisks (≤5 short items)
 
 If ENTERPRISE_MODE:
 - ipClauseConflicts
@@ -87,23 +104,28 @@ If ENTERPRISE_MODE:
 - pciDssCompliant
 - strongCustomerAuth
 
+Return output in plain text, one line per field, no explanations.
+
 TERMS:
 `,
 
-  // E-commerce / Marketplace
-  3: `Extract these fields from the Terms:
-- collectsPersonalData
-- sharesWithThirdParties
-- tracksForAds
-- arbitrationOrClassActionWaiver
-- autoRenewalOrSubscription
-- warrantyDefectPolicyAndJurisdiction
-- buyNowPayLaterAndLateFees
-- accountDeletionProcess
-- dataRetentionPeriod
-- jurisdictionGoverningLaw
-- ageRestrictions
-- notableOtherRisks
+  // 3 — E-commerce / Marketplace
+  3: `You are a compliance extractor analyzing an e-commerce or retail platform’s Terms.
+Respond with short factual outputs (≤10 words). No commentary.
+
+Fields:
+- collectsPersonalData (true/false)
+- sharesWithThirdParties (true/false)
+- tracksForAds (true/false)
+- arbitrationOrClassActionWaiver (true/false)
+- autoRenewalOrSubscription (true/false)
+- warrantyDefectPolicyAndJurisdiction (≤10 words)
+- buyNowPayLaterAndLateFees (≤10 words)
+- accountDeletionProcess (≤10 words)
+- dataRetentionPeriod (≤10 words)
+- jurisdictionGoverningLaw (≤5 words)
+- ageRestrictions (≤5 words)
+- notableOtherRisks (≤5 short items)
 
 If ENTERPRISE_MODE:
 - ipClauseConflicts
@@ -118,22 +140,27 @@ If ENTERPRISE_MODE:
 - vendorDataSharingLimits
 - bnplKycAmlDisclosure
 
+Return output in plain text, one line per field, no explanations.
+
 TERMS:
 `,
 
-  // Job / Career Platforms
-  4: `Extract these fields from the Terms:
-- collectsPersonalData
-- sharesWithThirdParties
-- tracksForAds
-- arbitrationOrClassActionWaiver
-- autoRenewalOrSubscription
-- dataRetentionAfterJobClosure
-- accountDeletionProcess
-- dataRetentionPeriod
-- jurisdictionGoverningLaw
-- ageRestrictions
-- notableOtherRisks
+  // 4 — Job / Career Platforms
+  4: `You are a compliance extractor analyzing job or recruitment platform Terms.
+Answer concisely (≤10 words). Use "Not specified" when unclear.
+
+Fields:
+- collectsPersonalData (true/false)
+- sharesWithThirdParties (true/false)
+- tracksForAds (true/false)
+- arbitrationOrClassActionWaiver (true/false)
+- autoRenewalOrSubscription (true/false)
+- dataRetentionAfterJobClosure (≤10 words)
+- accountDeletionProcess (≤10 words)
+- dataRetentionPeriod (≤10 words)
+- jurisdictionGoverningLaw (≤5 words)
+- ageRestrictions (≤5 words)
+- notableOtherRisks (≤5 short items)
 
 If ENTERPRISE_MODE:
 - ipClauseConflicts
@@ -148,8 +175,13 @@ If ENTERPRISE_MODE:
 - resumeAiTrainingUse
 - dataExportOptions
 
+Return output in plain text, one line per field, no explanations.
+
 TERMS:
 `
 };
 
-// RISK_EXTRACTION_PROMPTS is globally available
+// Make the prompts globally accessible to content.js
+if (typeof window !== 'undefined') {
+  window.RISK_EXTRACTION_PROMPTS = window.RISK_EXTRACTION_PROMPTS;
+}

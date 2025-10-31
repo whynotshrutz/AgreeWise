@@ -36,6 +36,27 @@ const UI_STRINGS = {
     "zh-CN":"摘要", "zh-TW":"摘要", ar:"الملخّص", ru:"Краткое содержание",
     bn:"সারাংশ", ta:"சுருக்கம்", te:"సారాంశం", mr:"सारांश", gu:"સારાંશ"
   },
+    not_specified: {
+    en: "Not specified",
+    hi: "निर्दिष्ट नहीं",
+    es: "No especificado",
+    fr: "Non spécifié",
+    de: "Nicht angegeben",
+    it: "Non specificato",
+    "pt-BR": "Não especificado",
+    "pt-PT": "Não especificado",
+    ja: "指定なし",
+    ko: "명시되지 않음",
+    "zh-CN": "未指定",
+    "zh-TW": "未指定",
+    ar: "غير محدد",
+    ru: "Не указано",
+    bn: "নির্দিষ্ট নয়",
+    ta: "குறிப்பிடப்படவில்லை",
+    te: "నిర్దేశించబడలేదు",
+    mr: "निर्दिष्ट नाही",
+    gu: "નિધિષ્ટ નથી"
+  },
   show_summary: {
     en:"Show summary", hi:"सारांश दिखाएँ", es:"Mostrar resumen", fr:"Afficher le résumé", de:"Zusammenfassung anzeigen",
     it:"Mostra riepilogo", "pt-BR":"Mostrar resumo", "pt-PT":"Mostrar resumo", ja:"要約を表示", ko:"요약 보기",
@@ -116,16 +137,38 @@ function detectPageLang(){
   const sample = (document.body.innerText || '').slice(0, 100);
   // If 70 or more characters in the sample belong to a script, assume that language
   const counts = {
-    hi: (sample.match(/[ऀ-ॿ]/g) || []).length,      // Hindi (Devanagari)
-    ar: (sample.match(/[ء-ي]/g) || []).length,       // Arabic
-    zh: (sample.match(/[一-龯]/g) || []).length,      // Chinese (CJK Unified Ideographs)
-    ja: (sample.match(/[ぁ-んァ-ン]/g) || []).length, // Japanese (Hiragana/Katakana)
-    ko: (sample.match(/[가-힣]/g) || []).length       // Korean (Hangul)
+   hi: (sample.match(/[\u0900-\u097F]/g) || []).length,    // Devanagari (Hindi, Marathi, Nepali)
+    bn: (sample.match(/[\u0980-\u09FF]/g) || []).length,    // Bengali
+    gu: (sample.match(/[\u0A80-\u0AFF]/g) || []).length,    // Gujarati
+    pa: (sample.match(/[\u0A00-\u0A7F]/g) || []).length,    // Gurmukhi (Punjabi) - overlaps with gu sometimes
+    or: (sample.match(/[\u0B00-\u0B7F]/g) || []).length,    // Oriya / Odia
+    ta: (sample.match(/[\u0B80-\u0BFF]/g) || []).length,    // Tamil
+    te: (sample.match(/[\u0C00-\u0C7F]/g) || []).length,    // Telugu
+    kn: (sample.match(/[\u0C80-\u0CFF]/g) || []).length,    // Kannada
+    ml: (sample.match(/[\u0D00-\u0D7F]/g) || []).length,    // Malayalam
+    si: (sample.match(/[\u0D80-\u0DFF]/g) || []).length,    // Sinhala
+    th: (sample.match(/[\u0E00-\u0E7F]/g) || []).length,    // Thai
+    vi: (sample.match(/[\u0100-\u017F]/g) || []).length,    // Latin-extended (Vietnamese often uses diacritics) — heuristic only
+    zh: (sample.match(/[\u4E00-\u9FFF]/g) || []).length,    // CJK Unified Ideographs (Chinese)
+    ja: (sample.match(/[\u3040-\u30FF\u31F0-\u31FF]/g) || []).length, // Hiragana/Katakana
+    ko: (sample.match(/[\uAC00-\uD7AF]/g) || []).length,    // Hangul (Korean)
+    ar: (sample.match(/[\u0600-\u06FF\u0750-\u077F]/g) || []).length, // Arabic
+    he: (sample.match(/[\u0590-\u05FF]/g) || []).length,    // Hebrew
+    fa: (sample.match(/[\u0600-\u06FF]/g) || []).length,    // Persian shares Arabic block
+    ru: (sample.match(/[\u0400-\u04FF]/g) || []).length,    // Cyrillic (Russian, Ukrainian etc.)
+    el: (sample.match(/[\u0370-\u03FF]/g) || []).length     // Greek (rare)
   };
+//   for (const [langCode, count] of Object.entries(counts)){
+//     if (count >= 70) return langCode;
+//   }
+let best = {lang: 'en', count: 0};
   for (const [langCode, count] of Object.entries(counts)){
-    if (count >= 70) return langCode;
+    if (count > best.count) best = {lang: langCode, count};
   }
-  return (navigator.language || 'en').toLowerCase().split('-')[0];
+
+  // threshold: require at least 8 characters of that script in the sample to be confident
+  if (best.count >= 8) return best.lang;
+return (navigator.language || 'en').toLowerCase().split('-')[0];
 }
 
 
@@ -338,6 +381,18 @@ async function extractPdfTextFromArrayBuffer(ab){
 /* =============================
    PAGE T&C FALLBACK
 ============================= */
+function cleanTermsText(text) {
+  // Remove version history / update notices / meta lines
+  return text
+    .replace(/see previous versions?/gi, "")
+    .replace(/updated on\s+\d{1,2}\s+\w+\s+\d{4}/gi, "")
+    .replace(/last (updated|modified)\s+[^\n]+/gi, "")
+    .replace(/version\s+\d+(\.\d+)*/gi, "")
+    .replace(/©\s*\d{4}.+/gi, "")
+    .replace(/\n{2,}/g, "\n") // normalize line breaks
+    .trim();
+}
+
 async function extractTermsTextFromPage(){
   const pageText = document.body.innerText || '';
   const link = Array.from(document.querySelectorAll('a[href]')).map(a=>a.href)
@@ -357,7 +412,8 @@ async function extractTermsTextFromPage(){
     }catch{}
   }
   const primary = linked.length > pageText.length*1.2 ? linked : pageText;
-  return primary.replace(/\s+\n/g,'\n').replace(/\n{3,}/g,'\n\n').slice(0,120000);
+  const cleaned = cleanTermsText(primary);
+return cleaned.replace(/\s+\n/g,'\n').replace(/\n{3,}/g,'\n\n').slice(0,20000);
 }
 
 /* =============================
@@ -472,10 +528,18 @@ async function extractRisks(fullText, category = 0, opts={}){
     required:["collectsPersonalData","sharesWithThirdParties","tracksForAds","arbitrationOrClassActionWaiver","autoRenewalOrSubscription"]
   };
   
+  // ✅ Use global fallback in case prompts.js isn't loaded yet
+const promptsGlobal = (typeof window !== 'undefined' && window.RISK_EXTRACTION_PROMPTS) 
+  ? window.RISK_EXTRACTION_PROMPTS 
+  : (typeof RISK_EXTRACTION_PROMPTS !== 'undefined' ? RISK_EXTRACTION_PROMPTS : null);
+
+  const categoryPrompt = (promptsGlobal && promptsGlobal[category])
+  ? promptsGlobal[category]
+  : (promptsGlobal && promptsGlobal[0]) || `You are a compliance extractor.
+Return only factual short answers (≤10 words) for each field. Do not explain.
+If unknown, write "Not specified".
   // Get the appropriate prompt based on category, fallback to category 0 (default) if category not found
-  const categoryPrompt = (typeof RISK_EXTRACTION_PROMPTS !== 'undefined' && RISK_EXTRACTION_PROMPTS[category]) 
-    ? RISK_EXTRACTION_PROMPTS[category] 
-    : (RISK_EXTRACTION_PROMPTS && RISK_EXTRACTION_PROMPTS[0]) || `You are a compliance summarizer. Extract fields tersely from the Terms below.
+  
 - collectsPersonalData (true/false)
 - sharesWithThirdParties (true/false)
 - tracksForAds (true/false)
@@ -499,7 +563,8 @@ TERMS:
   for (let i = 0; i < chunks.length; i++) {
     const policyCtx =
     `\n\nCONTEXT:\n` + `ENTERPRISE_MODE=${ENTERPRISE_MODE}\n` + (LOCATION_COUNTRY ? `LOCATION_COUNTRY=${LOCATION_COUNTRY}\n` : ``);
-    const prompt = categoryPrompt + policyCtx + chunks[i];
+    const prompt = categoryPrompt + "\nReturn output in plain text, one line per field, no explanations.\n" + policyCtx + chunks[i];
+
     const raw = await session.prompt(prompt, { responseConstraint: schema });
     const parsed = JSON.parse(raw);
     allResults.push(parsed);
@@ -607,13 +672,35 @@ async function maybeTranslate(text, targetLang, statusEl, langForStatus='en') {
   if (statusEl) statusEl.textContent = tr('done', langForStatus);
   return text;
 }
-async function translateArray(arr, targetLang, statusEl, langForStatus='en'){
+async function translateArray(arr, targetLang, statusEl, langForStatus='en') {
   if (!targetLang || targetLang === 'en' || !arr || !arr.length) return arr;
-  const SEP = '\n<<<AWSEP>>>\n';
-  const joined = arr.join(SEP);
+
+  // Use numbered tokens unlikely to be changed by translation
+  const markers = arr.map((_, i) => `<<<ITEM_${i}>>>`);
+  const joined = arr.map((t, i) => `${markers[i]}\n${t}`).join('\n');
+  
   const translated = await maybeTranslate(joined, targetLang, statusEl, langForStatus);
-  return translated.split(SEP);
+
+  // Re-split using regex to capture clean blocks after translation
+  const parts = [];
+  for (let i = 0; i < markers.length; i++) {
+    const regex = new RegExp(`${markers[i]}([\\s\\S]*?)(?=${markers[i+1]}|$)`, 'i');
+    const match = translated.match(regex);
+    if (match) {
+      const clean = match[1]
+        .replace(/awsep/gi, '')     // remove noise
+        .replace(/<</g, '')         // remove stray brackets
+        .replace(/>>/g, '')
+        .trim();
+      parts.push(clean);
+    } else {
+      parts.push('');
+    }
+  }
+
+  return parts;
 }
+
 
 /* =============================
    TTS (queue + pause/resume + cancel)
@@ -816,15 +903,35 @@ async function renderSummary(sumEl, bulletsText, targetLangOrNull, uiLang, statu
 }
 
 async function renderRiskBlock(riskEl, parsedRaw, score, lang, targetLang, statusEl){
-  const vals = [
-    parsedRaw.jurisdictionGoverningLaw||'—',
-    parsedRaw.dataRetentionPeriod||'—',
-    parsedRaw.accountDeletionProcess||'—',
-    parsedRaw.ageRestrictions||'—',
-    ...(parsedRaw.notableOtherRisks||[]).slice(0,5)
+  // helper to clean values and map empty/placeholder -> localized not_specified
+  function cleanAndLocalize(value, lang) {
+    if (value === null || value === undefined) return tr('not_specified', lang);
+    let s = String(value).trim();
+    // common placeholder tokens or literal 'undefined' -> unspecified
+    if (!s || s.toLowerCase() === 'undefined' || /^<<.*>>$/.test(s) || /^<.*>$/.test(s)) return tr('not_specified', lang);
+    // remove stray angle brackets and excessive whitespace
+    s = s.replace(/[<>]/g, '').replace(/\s{2,}/g, ' ').trim();
+    return s || tr('not_specified', lang);
+  }
+
+  const rawVals = [
+    parsedRaw.jurisdictionGoverningLaw,
+    parsedRaw.dataRetentionPeriod,
+    parsedRaw.accountDeletionProcess,
+    parsedRaw.ageRestrictions,
+    ...(parsedRaw.notableOtherRisks || []).slice(0, 5)
   ];
+
+  // Translate if requested (translateArray returns array in same order)
   let [jur, retention, deletion, age, ...other] =
-    (targetLang ? await translateArray(vals, targetLang, statusEl, lang) : vals);
+    (targetLang ? await translateArray(rawVals, targetLang, statusEl, lang) : rawVals);
+
+  // Clean & localize every field (use UI language for localized "Not specified")
+  jur = cleanAndLocalize(jur, lang);
+  retention = cleanAndLocalize(retention, lang);
+  deletion = cleanAndLocalize(deletion, lang);
+  age = cleanAndLocalize(age, lang);
+  other = (other || []).map(v => cleanAndLocalize(v, lang)).filter(v => v && v !== tr('not_specified', lang));
 
   const flags = [
     [tr('collects', lang), parsedRaw.collectsPersonalData],
@@ -832,7 +939,7 @@ async function renderRiskBlock(riskEl, parsedRaw, score, lang, targetLang, statu
     [tr('ads', lang), parsedRaw.tracksForAds],
     [tr('arbitration', lang), parsedRaw.arbitrationOrClassActionWaiver],
     [tr('autorenew', lang), parsedRaw.autoRenewalOrSubscription]
-  ].map(([label,v])=>`<div>${v ? dot(false) : dot(true)} ${label}</div>`).join('');
+  ].map(([label, v]) => `<div>${v ? dot(false) : dot(true)} ${label}</div>`).join('');
 
   riskEl.innerHTML = `
     <div class="grid" style="margin-bottom:8px">${flags}</div>
@@ -840,7 +947,7 @@ async function renderRiskBlock(riskEl, parsedRaw, score, lang, targetLang, statu
     <div class="muted" style="margin-top:6px">${tr('data_retention', lang)}</div><div>${retention}</div>
     <div class="muted" style="margin-top:6px">${tr('account_deletion', lang)}</div><div>${deletion}</div>
     <div class="muted" style="margin-top:6px">${tr('age', lang)}</div><div>${age}</div>
-    <div class="muted" style="margin-top:6px">${tr('other_risks', lang)}</div><div>${(other||[]).join(' · ')||'—'}</div>
+    <div class="muted" style="margin-top:6px">${tr('other_risks', lang)}</div><div>${(other || []).join(' · ') || tr('not_specified', lang)}</div>
     <div style="margin-top:10px"><strong>${tr('page_score', lang)}</strong> ${score}/100</div>
   `;
 }
