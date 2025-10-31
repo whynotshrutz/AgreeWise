@@ -1,19 +1,98 @@
-
+/* ---------- geometry & baseline ---------- */
 #agree-smart-panel{
+  --radius: 8px; /* set 0–4 for a sharp rectangle, 8–12 for soft */
   --bg:#fff; --fg:#0f172a; --border:#e5e7eb; --muted:#64748b; --card:#fff; --btn:#f8fafc; --shadow:0 6px 24px rgba(0,0,0,.08);
-  position:fixed; right:16px; bottom:16px; z-index:2147483647;
-  background:var(--bg); color:var(--fg); border:1px solid var(--border);
-  border-radius:12px; box-shadow:var(--shadow); max-width:420px; width:90vw;
-  font:14px/1.45 system-ui,-apple-system, Segoe UI, Roboto, sans-serif;
-  transition:background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  width: 90vw;
+  max-width: 420px;
+
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+
+  /* Make the outer shape final — no child can visually escape it */
+  overflow: hidden;
+
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
+
+/* dark theme vars stay the same */
 #agree-smart-panel[data-theme="dark"]{
   --bg:#0e1117; --fg:#e5e7eb; --border:#1f2937; --muted:#9ca3af; --card:#161b22; --btn:#1e293b; --shadow:0 6px 24px rgba(0,0,0,.4);
 }
-#agree-smart-panel header{padding:10px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); background:var(--card)}
-#agree-smart-panel .body{padding:12px; max-height:55vh; overflow:auto}
-#agree-smart-panel .muted{color:var(--muted)}
-#agree-smart-panel button{padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--btn); color:var(--fg); cursor:pointer; transition:background-color 200ms ease, color 200ms ease, border-color 200ms ease}
-#agree-smart-panel button:hover{ background:#2563eb; color:#fff }
-#agree-smart-panel .bad{color:#b91c1c} .warn{color:#a16207} .ok{color:#047857}
-#agree-smart-panel .grid{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+
+/* ---------- header: visually part of the panel ---------- */
+/* make header blend with panel and never be obscured by body overlays */
+#agree-smart-panel header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  padding: 10px 12px;
+  background: transparent;           /* let container bg show through */
+  border-bottom: 1px solid var(--border);
+  /* keep header above any body overlay */
+  position: relative;
+  z-index: 2;
+}
+
+/* brand + language layout */
+#agree-smart-panel .brand{
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 12px;
+  flex: 1 1 auto;
+}
+
+#agree-smart-panel .lang{
+  flex: 0 0 auto; /* stops it from pushing brand offscreen */
+  min-width: 110px; /* tweak as needed */
+}
+
+/* close button stays to right and independent */
+#agree-smart-panel .close-btn{ flex: 0 0 auto; margin-left: 8px; }
+
+/* ---------- body & overlays ---------- */
+#agree-smart-panel .body{
+  padding: 12px;
+  max-height: 55vh;
+  overflow: auto;
+  background: transparent; /* keep one flat color for panel */
+  position: relative;
+  z-index: 1;
+}
+
+/* If you use a loading overlay, pin it under the header */
+#agree-smart-panel .overlay{
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* set top to header height to avoid covering it (header ~40px) */
+  top: 44px;
+  bottom: 0;
+  display: none;            /* toggle with a class/data attr */
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;     /* don't block interactions unless needed */
+  z-index: 1;               /* under header */
+}
+
+/* show overlay when loading */
+#agree-smart-panel[data-loading="true"] .overlay{ display: flex; pointer-events: auto; }
+
+/* ---------- controls, visuals ---------- */
+#agree-smart-panel .muted{ color: var(--muted); }
+#agree-smart-panel button{ padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--btn); color:var(--fg); cursor:pointer; transition:background-color .2s ease, color .2s ease, border-color .2s ease; }
+#agree-smart-panel button:hover{ background:#2563eb; color:#fff; }
+#agree-smart-panel .bad{ color:#b91c1c; } .warn{ color:#a16207; } .ok{ color:#047857; }
+#agree-smart-panel .grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
