@@ -1,5 +1,3 @@
-//  Content.js
-//make changes checkk
 
 /* =============================
    THEME
@@ -373,12 +371,43 @@ function analyzeCategory(chunks){
   try{
     const txt = (chunks||[]).join('\n').toLowerCase();
     const score = (words)=> words.reduce((s,w)=> s + (txt.includes(w)?1:0), 0);
-    const categories = [
-      [1, ['follow','like','share','friends','timeline','profile','post','story','dm','social media','community']],
-      [2, ['payment','payout','billing','invoice','subscription','card','credit card','debit','refund','chargeback','wallet']],
-      [3, ['cart','checkout','order','shipment','seller','buyer','merchant','marketplace','product','sku','fulfillment','return policy']],
-      [4, ['job','career','resume','cv','applicant','recruiter','application','hiring','interview','employer','candidate']]
-    ];
+   const categories = [
+  // 1 — Social Media / Community / Communication
+  [1, [
+    'follow','follower','like','share','comment','friends','friend list','timeline','feed','profile',
+    'post','story','stories','dm','direct message','inbox','chat','group','channel','community',
+    'social media','social network','content creator','influencer','page','followers','tag','mention',
+    'upload photo','upload video','livestream','live stream','react','emoji','block user','report abuse',
+    'moderator','admin','followers count','engagement','reel','status update','public post','private message'
+  ]],
+
+  // 2 — Payment / Financial / Subscription / Billing
+  [2, [
+    'payment','payout','billing','invoice','subscription','auto-renew','renewal','card','credit card','debit card',
+    'upi','net banking','wallet','transaction','bank account','refund','chargeback','emi','installment',
+    'fee','fees','service fee','tax','gst','vat','discount','coupon','offer code','billing cycle','statement',
+    'account balance','payouts','withdraw','transfer','funds','deposit','money','subscription plan','trial period',
+    'renew automatically','cancel subscription','recurring payment','payment gateway','merchant account'
+  ]],
+
+  // 3 — E-Commerce / Marketplace / Retail
+  [3, [
+    'cart','add to cart','checkout','order','order id','shipment','delivery','shipping','tracking number','seller','buyer',
+    'merchant','marketplace','product','item','sku','inventory','warehouse','fulfillment','return','return policy',
+    'exchange','refund policy','replace','cancel order','offer','discount','deal','price','review','rating','wishlist',
+    'store','shop','customer','vendor','invoice','receipt','packing','delivery partner','order confirmation','out of stock'
+  ]],
+
+  // 4 — Job / Career / Hiring / HR
+  [4, [
+    'job','career','employment','resume','cv','curriculum vitae','applicant','candidate','recruiter','recruitment',
+    'application','apply now','job application','hiring','interview','shortlist','offer letter','background check',
+    'onboarding','probation','internship','intern','employer','employee','human resources','hr','payroll',
+    'salary','compensation','performance review','promotion','termination','resignation','vacancy','job portal',
+    'career page','job description','skills required','qualifications','experience required','remote work','work from home'
+  ]]
+];
+
     let best = [0, 0];
     for (const [id, words] of categories){ const sc = score(words); if (sc > best[1]) best = [id, sc]; }
     return best[1] > 0 ? best[0] : 0;
