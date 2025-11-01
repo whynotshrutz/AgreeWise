@@ -352,11 +352,21 @@ function getSectionContainerFromNode(node){
   return el || document.body;
 }
 function extractSectionTextAndLinks(container){
-  const text = (container.innerText||'').replace(/\s+\n/g,'\n').replace(/\n{3,}/g,'\n\n');
+  // Clone the container so we don't mutate the page
+  const clone = container.cloneNode(true);
+  // remove non-human-readable elements
+  clone.querySelectorAll('script, style, noscript, code, pre').forEach(el => el.remove());
+  // also remove hidden elements
+  Array.from(clone.querySelectorAll('*')).forEach(el => {
+    const cs = window.getComputedStyle(el);
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) el.remove();
+  });
+  const text = (clone.innerText||'').replace(/\s+\n/g,'\n').replace(/\n{3,}/g,'\n\n');
   const hrefs = Array.from(container.querySelectorAll('a[href]')).map(a=>a.href).filter(Boolean)
     .map(h=>{ try{ return new URL(h, location.href).href; }catch{ return null; } }).filter(Boolean);
   const uniq = Array.from(new Set(hrefs)); return { text, links: uniq.slice(0,6) };
 }
+
 
 /* =============================
    PDF SUPPORT
@@ -401,13 +411,24 @@ async function extractTermsTextFromPage(){
   if (link){
     try{
       const r = await fetch(link, {credentials:'include'});
-      if (r.ok){
+           if (r.ok){
         const ct = r.headers.get('content-type')||'';
         if (/pdf/i.test(ct) || /\.pdf($|\?)/i.test(link)){
           linked = await extractPdfTextFromArrayBuffer(await r.arrayBuffer());
         } else {
-          const html = await r.text(); const tmp = document.createElement('div'); tmp.innerHTML = html; linked = tmp.innerText || '';
+          const html = await r.text();
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          // Remove scripts, styles, code blocks before extracting text
+          tmp.querySelectorAll('script, style, noscript, code, pre').forEach(el => el.remove());
+          // also remove hidden elements to avoid template noise
+          Array.from(tmp.querySelectorAll('*')).forEach(el => {
+            const cs = window.getComputedStyle(el);
+            if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0')) el.remove();
+          });
+          linked = tmp.innerText || '';
         }
+
       }
     }catch{}
   }
@@ -492,7 +513,6 @@ async function summarizeChunks(chunks, mode='key-points'){
   const category = await analyzeCategory(chunks);
   return { text: out.join('\n'), category };
 }
-
 async function extractRisks(fullText, category = 0, opts={}){
   if (!('LanguageModel' in self) || typeof LanguageModel.availability!=='function') throw new Error('Prompt API not supported');
   const av = await LanguageModel.availability(); if (av==='unavailable') throw new Error('Language model unavailable');
@@ -515,7 +535,7 @@ async function extractRisks(fullText, category = 0, opts={}){
       // Category 4 (Job/Career) fields
       dataRetentionAfterJobClosure:{type:"string"},
       // Enterprise/Location (optional; harmless if absent)
-       ipClauseConflicts:{type:"boolean"},
+      ipClauseConflicts:{type:"boolean"},
       dataResidencyMatchesUser:{type:"boolean"},
       storageMechanismStrength:{type:"string"},
       securityStandards:{type:"string"},
@@ -529,52 +549,120 @@ async function extractRisks(fullText, category = 0, opts={}){
   };
   
   // ✅ Use global fallback in case prompts.js isn't loaded yet
-const promptsGlobal = (typeof window !== 'undefined' && window.RISK_EXTRACTION_PROMPTS) 
-  ? window.RISK_EXTRACTION_PROMPTS 
-  : (typeof RISK_EXTRACTION_PROMPTS !== 'undefined' ? RISK_EXTRACTION_PROMPTS : null);
+  const promptsGlobal = (typeof window !== 'undefined' && window.RISK_EXTRACTION_PROMPTS) 
+    ? window.RISK_EXTRACTION_PROMPTS 
+    : (typeof RISK_EXTRACTION_PROMPTS !== 'undefined' ? RISK_EXTRACTION_PROMPTS : null);
 
+  // Category prompt (fall back to default template)
   const categoryPrompt = (promptsGlobal && promptsGlobal[category])
-  ? promptsGlobal[category]
-  : (promptsGlobal && promptsGlobal[0]) || `You are a compliance extractor.
-Return only factual short answers (≤10 words) for each field. Do not explain.
-If unknown, write "Not specified".
-  // Get the appropriate prompt based on category, fallback to category 0 (default) if category not found
-  
-- collectsPersonalData (true/false)
-- sharesWithThirdParties (true/false)
-- tracksForAds (true/false)
-- arbitration / class-action waiver (true/false)
-- autoRenewalOrSubscription (true/false)
-- accountDeletionProcess (<= 20 words)
-- dataRetentionPeriod (<= 15 words)
-- jurisdictionGoverningLaw (<= 6 words)
-- ageRestrictions (<= 8 words)
-- notableOtherRisks (<= 5 short items)
-If unknown, set booleans=false and strings="".
-
+    ? promptsGlobal[category]
+    : (promptsGlobal && promptsGlobal[0]) || 
+`# INSTRUCTIONS
+Return a single valid JSON object that exactly matches the schema. DO NOT include any of the prompt text, examples, or instructions in the field values. For unknown fields, return false for booleans and an empty string for strings.
 TERMS:
 `;
-  
-  // Chunk fullText into 4000 character splits
+
   const chunks = chunk(fullText, 4000);
   const allResults = [];
-  
+
+  // small sanitizer helpers
+  function isPlaceholderStringForKey(key, value){
+    if (typeof value !== 'string') return false;
+    const v = value.trim();
+    if (!v) return true;
+    if (v.toLowerCase() === key.toLowerCase()) return true;               // exact field-name echo
+    if (/^<.*>$/.test(v)) return true;                                   // markup-like
+    if (/not specified|n\/a|none|unspecified/i.test(v)) return true;     // obvious placeholders
+    if (/^\w+$/.test(v) && /[A-Z]/.test(key)) {                          // camelCase echo heuristic
+      // e.g. "jurisdictionGoverningLaw" returned as value
+      if (v === key) return true;
+    }
+    return false;
+  }
+
+  function sanitizeStringField(key, value){
+    if (value === null || value === undefined) return '';
+    if (typeof value !== 'string') return String(value || '');
+    let s = value.trim();
+    // remove leading/trailing angle brackets and markdown bullets that sometimes leak
+    s = s.replace(/^[#\-\*]+\s*/g, '').replace(/[<>]/g, '').trim();
+    if (isPlaceholderStringForKey(key, s)) return '';
+    return s;
+  }
+
   // Process each chunk
   for (let i = 0; i < chunks.length; i++) {
     const policyCtx =
-    `\n\nCONTEXT:\n` + `ENTERPRISE_MODE=${ENTERPRISE_MODE}\n` + (LOCATION_COUNTRY ? `LOCATION_COUNTRY=${LOCATION_COUNTRY}\n` : ``);
-    const prompt = categoryPrompt + "\nReturn output in plain text, one line per field, no explanations.\n" + policyCtx + chunks[i];
+      `\n\n# CONTEXT\nENTERPRISE_MODE=${ENTERPRISE_MODE}\n` +
+      (LOCATION_COUNTRY ? `LOCATION_COUNTRY=${LOCATION_COUNTRY}\n` : ``);
 
-    const raw = await session.prompt(prompt, { responseConstraint: schema });
-    const parsed = JSON.parse(raw);
-    allResults.push(parsed);
+    const prompt = categoryPrompt + policyCtx + "\n" + "TERMS:\n" + chunks[i] + "\n\nReturn only valid JSON.";
+    let raw;
+    try {
+      raw = await session.prompt(prompt, { responseConstraint: schema });
+    } catch (e) {
+      // model couldn't obey constraint — request relaxed JSON response
+      console.warn('[AgreeWise] prompt with responseConstraint failed, retrying without constraint:', e);
+      raw = await session.prompt(prompt + "\n\nPlease respond with a single JSON object that matches the schema.");
+    }
+
+    let parsed = {};
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      // attempt to extract JSON substring as a fallback
+      console.warn('[AgreeWise] JSON.parse failed; attempting substring extraction. Raw:', raw);
+      const m = raw.match(/\{[\s\S]*\}$/);
+      try {
+        parsed = m ? JSON.parse(m[0]) : {};
+      } catch (e2) {
+        console.warn('[AgreeWise] fallback parse also failed:', e2);
+        parsed = {};
+      }
+    }
+
+    // --- SANITIZE parsed object immediately ---
+    // ensure fields exist, coerce types, and remove placeholder echoes
+    const clean = {};
+    for (const [k, v] of Object.entries(parsed || {})) {
+      // booleans: keep as-is if boolean, else coerce falsy->false
+      if (schema.properties[k] && schema.properties[k].type === 'boolean') {
+        clean[k] = (typeof v === 'boolean') ? v : false;
+        continue;
+      }
+
+      // arrays (notableOtherRisks) - coerce to array of strings and sanitize elements
+      if (schema.properties[k] && schema.properties[k].type === 'array') {
+        if (Array.isArray(v)) {
+          clean[k] = v.map(x => sanitizeStringField(k, x)).filter(s => s);
+        } else if (typeof v === 'string' && v.trim()) {
+          // sometimes LM returns comma/newline separated string
+          const parts = v.split(/[\n,·•;]+/).map(p => sanitizeStringField(k, p)).filter(s => s);
+          clean[k] = parts;
+        } else {
+          clean[k] = [];
+        }
+        continue;
+      }
+
+      // strings and others: sanitize
+      clean[k] = sanitizeStringField(k, v);
+    }
+
+    // Ensure required boolean fields are present (default false)
+    for (const req of schema.required || []) {
+      if (!(req in clean)) clean[req] = false;
+    }
+
+    allResults.push(clean);
   }
-  
+
   // Helper function to find first non-empty string value across all results
   const findFirstNonEmpty = (fieldName) => {
-    return allResults.find(r => r[fieldName] && String(r[fieldName]).trim())?.[fieldName] || '';
+    const v = allResults.find(r => r[fieldName] && String(r[fieldName]).trim());
+    return v ? v[fieldName] : '';
   };
-  
+
   // Merge results from all chunks
   const merged = {
     // Common boolean fields (use OR logic - if any chunk says true, it's true)
@@ -583,30 +671,47 @@ TERMS:
     tracksForAds: allResults.some(r => r.tracksForAds === true),
     arbitrationOrClassActionWaiver: allResults.some(r => r.arbitrationOrClassActionWaiver === true),
     autoRenewalOrSubscription: allResults.some(r => r.autoRenewalOrSubscription === true),
-    // Common string fields
-    accountDeletionProcess: findFirstNonEmpty('accountDeletionProcess'),
-    dataRetentionPeriod: findFirstNonEmpty('dataRetentionPeriod'),
-    jurisdictionGoverningLaw: findFirstNonEmpty('jurisdictionGoverningLaw'),
-    ageRestrictions: findFirstNonEmpty('ageRestrictions'),
+
+    // Common string fields (first non-empty)
+    accountDeletionProcess: findFirstNonEmpty('accountDeletionProcess') || '',
+    dataRetentionPeriod: findFirstNonEmpty('dataRetentionPeriod') || '',
+    jurisdictionGoverningLaw: findFirstNonEmpty('jurisdictionGoverningLaw') || '',
+    ageRestrictions: findFirstNonEmpty('ageRestrictions') || '',
     notableOtherRisks: Array.from(new Set(
       allResults
         .flatMap(r => r.notableOtherRisks || [])
         .filter(item => item && item.trim())
     )).slice(0, 5),
-    // Category 1 (Social Media) fields
-    under18HandlingAndParentalRights: findFirstNonEmpty('under18HandlingAndParentalRights'),
-    prohibitedConductCoverage: findFirstNonEmpty('prohibitedConductCoverage'),
-    // Category 2 (Payment/Financial) fields
-    financialDataStoredAndDuration: findFirstNonEmpty('financialDataStoredAndDuration'),
-    kycAmlAndAccountFreezes: findFirstNonEmpty('kycAmlAndAccountFreezes'),
-    unauthorizedTransactionLiability: findFirstNonEmpty('unauthorizedTransactionLiability'),
-    // Category 3 (E-commerce) fields
-    warrantyDefectPolicyAndJurisdiction: findFirstNonEmpty('warrantyDefectPolicyAndJurisdiction'),
-    buyNowPayLaterAndLateFees: findFirstNonEmpty('buyNowPayLaterAndLateFees'),
-    // Category 4 (Job/Career) fields
-    dataRetentionAfterJobClosure: findFirstNonEmpty('dataRetentionAfterJobClosure')
+
+    // Category specific
+    under18HandlingAndParentalRights: findFirstNonEmpty('under18HandlingAndParentalRights') || '',
+    prohibitedConductCoverage: findFirstNonEmpty('prohibitedConductCoverage') || '',
+    financialDataStoredAndDuration: findFirstNonEmpty('financialDataStoredAndDuration') || '',
+    kycAmlAndAccountFreezes: findFirstNonEmpty('kycAmlAndAccountFreezes') || '',
+    unauthorizedTransactionLiability: findFirstNonEmpty('unauthorizedTransactionLiability') || '',
+    warrantyDefectPolicyAndJurisdiction: findFirstNonEmpty('warrantyDefectPolicyAndJurisdiction') || '',
+    buyNowPayLaterAndLateFees: findFirstNonEmpty('buyNowPayLaterAndLateFees') || '',
+    dataRetentionAfterJobClosure: findFirstNonEmpty('dataRetentionAfterJobClosure') || '',
+
+    // Enterprise/location optional fields (may be undefined)
+    ipClauseConflicts: allResults.some(r => r.ipClauseConflicts === true),
+    dataResidencyMatchesUser: (typeof allResults.find(r => r.dataResidencyMatchesUser !== undefined)?.dataResidencyMatchesUser !== 'undefined')
+      ? !!allResults.find(r => r.dataResidencyMatchesUser !== undefined).dataResidencyMatchesUser
+      : undefined,
+    storageMechanismStrength: findFirstNonEmpty('storageMechanismStrength') || '',
+    securityStandards: findFirstNonEmpty('securityStandards') || '',
+    breachNoticeWindow: findFirstNonEmpty('breachNoticeWindow') || '',
+    ssoSamlSupport: (typeof allResults.find(r => typeof r.ssoSamlSupport !== 'undefined')?.ssoSamlSupport !== 'undefined')
+      ? !!allResults.find(r => typeof r.ssoSamlSupport !== 'undefined').ssoSamlSupport
+      : undefined,
+    subprocessorDisclosure: findFirstNonEmpty('subprocessorDisclosure') || '',
+    ipDisputeJurisdiction: findFirstNonEmpty('ipDisputeJurisdiction') || '',
+    ipDisputeMatchesUser: (typeof allResults.find(r => typeof r.ipDisputeMatchesUser !== 'undefined')?.ipDisputeMatchesUser !== 'undefined')
+      ? !!allResults.find(r => typeof r.ipDisputeMatchesUser !== 'undefined').ipDisputeMatchesUser
+      : undefined
   };
-  
+
+  // compute score (same logic you had)
   let score=100;
   if (merged.collectsPersonalData) score-=15;
   if (merged.sharesWithThirdParties) score-=20;
@@ -617,11 +722,12 @@ TERMS:
     if (merged.ipClauseConflicts) score -= 10;
     if (LOCATION_COUNTRY && merged.dataResidencyMatchesUser === false) score -= 15;
     if (LOCATION_COUNTRY && merged.ipDisputeMatchesUser === false) score -= 8;
-   if (merged.ssoSamlSupport === false) score -= 5;
+    if (merged.ssoSamlSupport === false) score -= 5;
   }
   merged.__score = Math.max(0, Math.min(100, score));
   return merged;
 }
+
 
 /* =============================
    TRANSLATOR (progress + fallback + batching)
@@ -905,6 +1011,10 @@ async function renderSummary(sumEl, bulletsText, targetLangOrNull, uiLang, statu
 async function renderRiskBlock(riskEl, parsedRaw, score, lang, targetLang, statusEl){
   // helper to clean values and map empty/placeholder -> localized not_specified
   function cleanAndLocalize(value, lang) {
+    // if parsedRaw has no real text values, ensure fields are empty strings (not "jurisdictionGoverningLaw")
+['jurisdictionGoverningLaw','dataRetentionPeriod','accountDeletionProcess','ageRestrictions']
+  .forEach(k => { if (!parsedRaw[k] || String(parsedRaw[k]).trim().length===0) parsedRaw[k] = ''; });
+
     if (value === null || value === undefined) return tr('not_specified', lang);
     let s = String(value).trim();
     // common placeholder tokens or literal 'undefined' -> unspecified

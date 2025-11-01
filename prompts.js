@@ -49,7 +49,7 @@ Fields:
 - autoRenewalOrSubscription (true/false)
 - under18HandlingAndParentalRights (≤10 words)
 - prohibitedConductCoverage (≤10 words)
-- accountDeletionProcess (≤10 words)
+-accountDeletionProcess: short string summarizing how a user deletes their account. If unknown, return "".
 - dataRetentionPeriod (≤10 words)
 - jurisdictionGoverningLaw (≤5 words)
 - ageRestrictions (≤5 words)
